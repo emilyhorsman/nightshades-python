@@ -1,5 +1,7 @@
 # nightshades
 
+[![Coverage Status](https://coveralls.io/repos/github/emilyhorsman/nightshades-python/badge.svg?branch=development)](https://coveralls.io/github/emilyhorsman/nightshades-python?branch=development)
+
 A Pomodoro library written with Python 3 and postgresql for storage.
 
 ## Why “nightshades”?
@@ -94,4 +96,15 @@ https://pypi.python.org/pypi/nightshades
 
 ```
 $ pip install nightshades
+```
+
+## Coveralls.io
+
+Make sure you have a `.coveralls.yml` with the `repo_token` from Coveralls.io.
+
+```
+$ pip install -r requirements.test.txt
+$ coverage run tests.py
+$ coverage report -m
+$ coveralls
 ```

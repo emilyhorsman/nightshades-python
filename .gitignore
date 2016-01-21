@@ -4,4 +4,7 @@ dist/
 __pycache__
 *.pyc
 
+.coverage
+.coveralls.yml
+
 .env
