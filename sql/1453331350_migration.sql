@@ -1,8 +1,8 @@
 DROP SCHEMA IF EXISTS nightshades CASCADE;
 CREATE SCHEMA nightshades;
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA nightshades;
-CREATE EXTENSION IF NOT EXISTS "pgcrypto" SCHEMA nightshades;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE nightshades.users (
   id   bigserial PRIMARY KEY,
