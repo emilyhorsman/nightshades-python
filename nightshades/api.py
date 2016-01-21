@@ -59,7 +59,10 @@ class Unit:
     def mark_complete(self):
         sql = form_update(
             update = ('nightshades.units', 'completed=TRUE'),
-            where  = ('user_id=%(user_id)s', 'id=%(id)s', 'completed=FALSE'),)
+            where  = ('user_id=%(user_id)s',
+                      'id=%(id)s',
+                      'completed=FALSE',
+                      'NOW() >= expiry_time',))
 
         with self.conn.cursor() as curs:
             curs.execute(sql, self.sql_opts)
@@ -70,7 +73,7 @@ class Unit:
 
             # Something fishy has happened.
             self.conn.rollback()
-            return (False, 'More than one unit would have been marked complete.')
+            return (False, 'Tried to mark {} units complete.'.format(res))
 
 class User:
     def __init__(self, conn, user_id):
