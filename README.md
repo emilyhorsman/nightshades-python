@@ -40,6 +40,9 @@ $ mkvirtualenv nightshades --python=python3
 ### Install packages
 
 `requirements.txt` contains all production requirements.
+`requirements.test.txt` contains all packages required for testing. Right now
+this is only necessary for [Coveralls](http://coveralls.io/) and
+[Coverage.py](https://coverage.readthedocs.org)
 
 ```
 $ pip install -r requirements.txt
@@ -49,9 +52,7 @@ $ pip install -r requirements.txt
 
 ```
 postgres=# CREATE DATABASE nightshades
-```
 
-```
 $ find sql/*_migration.sql -exec psql -d nightshades -f {} \;
 ```
 
@@ -78,7 +79,7 @@ located in your current working directory. You can specify a different dotenv
 path like so:
 
 ```
-$ NIGHTSHADES_DOTENV=~/config/.nightshades.env python playground.py
+$ NIGHTSHADES_DOTENV=~/config/.nightshades.env python tests.py
 ```
 
 Your `.env` should look something like this:
