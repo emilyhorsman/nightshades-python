@@ -1,3 +1,6 @@
+# This is how long one has after the expiry_time to mark a unit as complete.
+expiry_interval = "INTERVAL '5 minutes'"
+
 def form_select(*args, **kwargs):
     symbols = ['SELECT', kwargs['select'][0], 'FROM', kwargs['select'][1]]
 
@@ -62,14 +65,15 @@ class Unit:
             where  = ('user_id=%(user_id)s',
                       'id=%(id)s',
                       'completed=FALSE',
-                      'NOW() >= expiry_time',))
+                      'NOW() >= expiry_time',
+                      'NOW() <= expiry_time + {}'.format(expiry_interval),))
 
         with self.conn.cursor() as curs:
             curs.execute(sql, self.sql_opts)
             res = curs.rowcount
             if res == 1:
                 self.conn.commit()
-                return True
+                return (True,)
 
             # Something fishy has happened.
             self.conn.rollback()
@@ -97,13 +101,15 @@ class User:
             curs.execute(sql, self.sql_opts)
             return curs.fetchall()
 
-    # Returns True if a unit is currently in progress.
+    # Returns True if a unit is currently in progress. There is a particular
+    # threshold for when a unit is considered expired. The unit must be marked
+    # complete within this threshold.
     def is_unit_ongoing(self):
         sql = form_select(
             select = ('COUNT(id)', 'nightshades.units'),
             where  = ('user_id=%(user_id)s',
                       'completed=FALSE',
-                      'expiry_time > NOW()'),)
+                      'expiry_time + {} > NOW()'.format(expiry_interval)),)
 
         with self.conn.cursor() as curs:
             curs.execute(sql, self.sql_opts)
@@ -115,19 +121,20 @@ class User:
             delete = 'nightshades.units',
             where  = ('user_id=%(user_id)s',
                       'completed=FALSE',
-                      'expiry_time > NOW()'),)
+                      'expiry_time > NOW()',
+                      'expiry_time <= NOW() + {}'.format(expiry_interval),))
 
         with self.conn.cursor() as curs:
             curs.execute(sql, self.sql_opts)
             res = curs.rowcount
             if res == 1:
                 self.conn.commit()
-                return True
+                return (True, None, None,)
 
             # Something fishy has happened. There should only ever be one
             # ongoing unit. For caution, we'll rollback this statement.
             self.conn.rollback()
-            return (False, 'More than one row would have been deleted from this operation.')
+            return (False, 'Expected DELETE statement to affect exactly 1 row', res)
 
     # Returns back a uuid (which basically acts as a nonce) and a time delta.
     # Returns False if a unit is already ongoing.
