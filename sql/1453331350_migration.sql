@@ -19,7 +19,7 @@ CREATE TABLE nightshades.units (
 
 CREATE TABLE nightshades.unit_tags (
   unit_id uuid REFERENCES nightshades.units(id),
-  string  varchar(255) NOT NULL
+  string  varchar(40) NOT NULL
 );
 
 INSERT INTO nightshades.users (name) VALUES ('Emily Horsman');

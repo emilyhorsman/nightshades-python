@@ -45,6 +45,63 @@ class Unit:
             self.conn.rollback()
             return (False, 'Tried to mark {} units complete.'.format(res))
 
+    # Returns a tuple containing,
+    # (new tags in database, invalid tags not inserted)
+    def update_tags(self, tag_csv):
+        if tag_csv.count(',') >= 5:
+            return (False, 'A unit can only have 5 tags')
+
+        # Get the old ones out of the way
+        remove_sql = form_delete(
+                delete = 'nightshades.unit_tags',
+                where  = ('unit_id=%(id)s',))
+
+
+        # ....aaaaand the messy bit to bring in the new ones.
+        invalids    = []
+        insert_opts = []
+        mogrify_me  = []
+        for _tag in set(tag_csv.split(',')): # Unique only
+            # Skip any blank tags
+            tag = _tag.strip()
+            if not tag:
+                continue
+
+            # Validate the tag, spit back a validation tuple
+            if len(tag) > 40:
+                invalids.append((tag, 'Over 40 characters',))
+                continue
+
+            # We need to insert multiple values,
+            # INSERT ... VALUES (id, 'a'), (id, 'b');
+            #                   (%s, %s),  (%s, %s);
+            #
+            # psycopg2 is expecting positional arguments so we need to give
+            # it a list of `uid,tag,uid,tag` to mogrify into
+            # the list of `(%s, %s)`s.
+            mogrify_me.append("(%s,%s)")
+
+            # Flattened list of (uid,tag)
+            insert_opts.append(self.unit_id)
+            insert_opts.append(tag)
+
+        # This is suckage, I am sorry.
+        symbols = ['INSERT INTO',
+                   'nightshades.unit_tags (unit_id, string)',
+                   'VALUES',
+                   ','.join(mogrify_me),
+                   'RETURNING string']
+        insert_sql = ' '.join(symbols) + ';'
+
+        with self.conn.cursor() as curs:
+            curs.execute(remove_sql, self.sql_opts)
+            curs.execute(insert_sql, insert_opts)
+            res = curs.fetchall()
+
+        self.conn.commit()
+        return (res, invalids,)
+
+
 class User:
     def __init__(self, conn, user_id):
         self.conn = conn

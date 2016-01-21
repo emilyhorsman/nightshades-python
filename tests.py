@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os
 import datetime
 import unittest
@@ -149,6 +151,84 @@ class TestUnitMarkComplete(unittest.TestCase):
         res = unit.mark_complete()
         self.assertFalse(res[0])
 
+# Test Unit#update_tags
+class TestUnitUpdateTags(unittest.TestCase):
+    # Should add and overwrite past tags.
+    @with_connection
+    def test_add_and_overwrite_tags(self, conn):
+        user_id, unit_id = create_user_with_unit(conn,
+                completed   = False,
+                start_time  = "NOW()",
+                expiry_time = "NOW() + INTERVAL '25 minutes'")
+
+        unit = nightshades.api.Unit(conn, user_id, unit_id)
+        tags_res = unit.update_tags("😍, bar, baz, omg,hi")
+
+        with conn.cursor() as curs:
+            curs.execute('SELECT string FROM nightshades.unit_tags WHERE unit_id=%s',
+                    (unit_id,))
+            check_res = curs.fetchall()
+
+            self.assertEqual(check_res, tags_res[0])
+
+            # Sanity check
+            self.assertIn(('hi',), check_res)
+            self.assertIn(('omg',), check_res)
+
+        tags_res = unit.update_tags("a,b,c ")
+        with conn.cursor() as curs:
+            curs.execute('SELECT string FROM nightshades.unit_tags WHERE unit_id=%s',
+                    (unit_id,))
+            check_res = curs.fetchall()
+
+            self.assertEqual(check_res, tags_res[0])
+
+            # Sanity check
+            self.assertIn(('c',), check_res)
+            self.assertNotIn(('hi,'), check_res)
+
+    # Should not accept more than 5 tags
+    @with_connection
+    def test_no_more_than_five_tags(self, conn):
+        user_id, unit_id = create_user_with_unit(conn,
+                completed   = False,
+                start_time  = "NOW()",
+                expiry_time = "NOW() + INTERVAL '25 minutes'")
+
+        unit = nightshades.api.Unit(conn, user_id, unit_id)
+        res  = unit.update_tags("a,b,c,d,e,f")
+        self.assertFalse(res[0])
+
+    # Should spit tags over 40 characters back as invalid.
+    # Should not insert blank tags.
+    @with_connection
+    def test_tag_validation(self, conn):
+        user_id, unit_id = create_user_with_unit(conn,
+                completed   = False,
+                start_time  = "NOW()",
+                expiry_time = "NOW() + INTERVAL '25 minutes'")
+
+        unit = nightshades.api.Unit(conn, user_id, unit_id)
+        res  = unit.update_tags(",," + "a" * 41 + "," + "💆" * 40 + ",bar")
+        self.assertEqual(len(res[0]), 2,
+                msg='Only the two valid tags should have been inserted.')
+        self.assertIn(('bar',), res[0])
+        self.assertIn(('💆'*40,), res[0])
+        self.assertEqual(len(res[1]), 1)
+
+    # Should not insert duplicates.
+    @with_connection
+    def test_tag_duplicates(self, conn):
+        user_id, unit_id = create_user_with_unit(conn,
+                completed   = False,
+                start_time  = "NOW()",
+                expiry_time = "NOW() + INTERVAL '25 minutes'")
+
+        unit = nightshades.api.Unit(conn, user_id, unit_id)
+        res  = unit.update_tags("bar,bar,foo")
+        self.assertEqual(len(res[0]), 2)
+
+
 # Test User#is_unit_ongoing
 class TestUserIsUnitOngoing(unittest.TestCase):
     # Should return True if there is an ongoing, incomplete unit.
@@ -157,7 +237,7 @@ class TestUserIsUnitOngoing(unittest.TestCase):
         user_id, _ = create_user_with_unit(conn,
                 completed   = False,
                 start_time  = "NOW()",
-                expiry_time = "NOW() + '1 minute'")
+                expiry_time = "NOW() + INTERVAL '1 minute'")
 
         user = nightshades.api.User(conn, user_id)
         self.assertTrue(user.is_unit_ongoing())

@@ -28,9 +28,8 @@ but `requirements.dev.txt` contains packages needed for `playground.py`
 $ git clone https://github.com/emilyhorsman/nightshades-python.git nightshades
 $ cd nightshades
 $ mkvirtualenv nightshades --python=python3
-$ pip install -r requirements.dev.txt
-$ psql -d nightshades -f sql/1453331350_migration.sql
-$ python playground.py
+$ pip install -r requirements.txt
+$ find sql/*_migration.sql -exec psql -d nightshades -f {} \;
 ```
 
 These instructions assume that you’ve created a database called `nightshades`
@@ -45,7 +44,17 @@ Note that `.test.env` has a database string set for testing.
 ```
 postgres=# CREATE DATABASE nightshades_test;
 
+$ find sql/*_migration.sql -exec psql -d nightshades_test -f {} \;
 $ python tests.py
+```
+
+### Requirements
+
+`requirements.txt` contains all production requirements.
+`requirements.dev.txt` contains packages needed for `playground.py`.
+
+```
+$ pip install -r requirements.txt
 ```
 
 ## dotenv
