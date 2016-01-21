@@ -1,2 +1,5 @@
 psycopg2==2.6.1
 wheel==0.26.0
+python-dotenv==0.3.0
+ordereddict==1.1
+click==6.2
