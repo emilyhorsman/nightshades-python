@@ -9,6 +9,9 @@ services:
   - postgresql
 addons:
   postgresql: "9.3"
+cache:
+  directories:
+    - $HOME/.cache/pip
 env:
   - NIGHTSHADES_POSTGRESQL_DB_STR='dbname=nightshades_test user=postgres'
 install:
