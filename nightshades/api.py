@@ -79,6 +79,9 @@ class User:
     def __init__(self, conn, user_id):
         self.conn = conn
         self.user_id = user_id
+        self.sql_opts = {
+            'user_id': self.user_id
+        }
 
     def get_units(self, show_incomplete=False):
         completion = []
@@ -90,12 +93,8 @@ class User:
             where  = ['user_id=%(user_id)s'] + completion,
             order  = 'expiry_time DESC',)
 
-        opts = {
-            'user_id': self.user_id
-        }
-
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
+            curs.execute(sql, self.sql_opts)
             return curs.fetchall()
 
     # Returns True if a unit is currently in progress.
@@ -106,12 +105,8 @@ class User:
                       'completed=FALSE',
                       'expiry_time > NOW()'),)
 
-        opts = {
-            'user_id': self.user_id
-        }
-
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
+            curs.execute(sql, self.sql_opts)
             res = curs.fetchone()
             return res[0] > 0
 
@@ -122,12 +117,8 @@ class User:
                       'completed=FALSE',
                       'expiry_time > NOW()'),)
 
-        opts = {
-            'user_id': self.user_id
-        }
-
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
+            curs.execute(sql, self.sql_opts)
             res = curs.rowcount
             if res == 1:
                 self.conn.commit()
@@ -149,10 +140,8 @@ class User:
             values    = "%(user_id)s, NOW(), NOW() + INTERVAL '%(minutes)s minutes'",
             returning = 'id, expiry_time - NOW()',)
 
-        opts = {
-            'user_id': self.user_id,
-            'minutes': minutes
-        }
+        opts = self.sql_opts.copy()
+        opts['minutes'] = minutes
 
         with self.conn.cursor() as curs:
             curs.execute(sql, opts)
