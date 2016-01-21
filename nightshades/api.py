@@ -134,7 +134,7 @@ class User:
                 return True
 
             # Something fishy has happened. There should only ever be one
-            # ongoing unit. Out of cautios, we'll rollback this statement.
+            # ongoing unit. For caution, we'll rollback this statement.
             self.conn.rollback()
             return (False, 'More than one row would have been deleted from this operation.')
 
