@@ -38,6 +38,16 @@ and have correctly configured your roles. Unfortunately, the migration SQL
 currently has a `CREATE EXTENSION` call. This means your current role will need
 to have `superuser` privileges.
 
+### Testing
+
+Note that `.test.env` has a database string set for testing.
+
+```
+postgres=# CREATE DATABASE nightshades_test;
+
+$ python tests.py
+```
+
 ## dotenv
 
 `nightshades` will attempt to load environment variables from a `.env` file
