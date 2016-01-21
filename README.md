@@ -21,14 +21,35 @@ to create a decoupled web client that could plop into a menu bar.
 
 ### Getting Started
 
-`requirements.txt` contains all that’s needed to use the library traditionally,
-but `requirements.dev.txt` contains packages needed for `playground.py`
-
 ```
 $ git clone https://github.com/emilyhorsman/nightshades-python.git nightshades
 $ cd nightshades
+```
+
+### virtualenv
+
+[virtualenvwrapper](https://virtualenvwrapper.readthedocs.org/en/latest/) makes
+things pretty handy.
+
+```
 $ mkvirtualenv nightshades --python=python3
+```
+
+### Install packages
+
+`requirements.txt` contains all production requirements.
+
+```
 $ pip install -r requirements.txt
+```
+
+### Create database and run migrations
+
+```
+postgres=# CREATE DATABASE nightshades
+```
+
+```
 $ find sql/*_migration.sql -exec psql -d nightshades -f {} \;
 ```
 
@@ -46,15 +67,6 @@ postgres=# CREATE DATABASE nightshades_test;
 
 $ find sql/*_migration.sql -exec psql -d nightshades_test -f {} \;
 $ python tests.py
-```
-
-### Requirements
-
-`requirements.txt` contains all production requirements.
-`requirements.dev.txt` contains packages needed for `playground.py`.
-
-```
-$ pip install -r requirements.txt
 ```
 
 ## dotenv
