@@ -1,7 +1,6 @@
 import os
 import contextlib
 
-import dotenv
 import psycopg2
 
 class connection(contextlib.ContextDecorator):
@@ -16,6 +15,8 @@ class connection(contextlib.ContextDecorator):
         self.connection.close()
 
 def load_dotenv():
+    import dotenv
+
     # I really don't like libraries that assume the dotenv file is in the
     # current working directory, so give the option.
     custom_location = os.environ.get('NIGHTSHADES_DOTENV')
