@@ -24,14 +24,22 @@ CREATE TABLE nightshades.unit_tags (
 
 INSERT INTO nightshades.users (name) VALUES ('Emily Horsman');
 
-INSERT INTO nightshades.units (user_id, start_time, expiry_time) VALUES
+INSERT INTO nightshades.units (user_id, completed, start_time, expiry_time) VALUES
   (
     (SELECT id FROM nightshades.users LIMIT 1),
-    '2016-01-20 23:05:10 America/Toronto',
-    timestamp '2016-01-20 23:05:10 America/Toronto' + interval '25 minutes'
+    TRUE,
+    '2016-01-20 09:05:10 America/Toronto',
+    timestamp '2016-01-20 09:05:10 America/Toronto' + interval '25 minutes'
   ),
   (
     (SELECT id FROM nightshades.users LIMIT 1),
+    TRUE,
+    NOW() - interval '30 minutes',
+    NOW() - interval '5 minutes'
+  ),
+  (
+    (SELECT id FROM nightshades.users LIMIT 1),
+    FALSE,
     NOW(),
     NOW() + interval '25 minutes'
   )
