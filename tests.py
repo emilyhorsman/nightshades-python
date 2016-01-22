@@ -169,7 +169,7 @@ class TestUnitUpdateTags(unittest.TestCase):
                     (unit_id,))
             check_res = curs.fetchall()
 
-            self.assertEqual(check_res, tags_res[0])
+            self.assertEqual(sorted(check_res), sorted(tags_res[0]))
 
             # Sanity check
             self.assertIn(('hi',), check_res)
@@ -181,7 +181,7 @@ class TestUnitUpdateTags(unittest.TestCase):
                     (unit_id,))
             check_res = curs.fetchall()
 
-            self.assertEqual(check_res, tags_res[0])
+            self.assertEqual(sorted(check_res), sorted(tags_res[0]))
 
             # Sanity check
             self.assertIn(('c',), check_res)
@@ -335,6 +335,7 @@ class TestUserStartUnit(unittest.TestCase):
         self.assertFalse(res[0],
                 msg='Should not have started second ongoing unit.')
 
+from http_tests import *
 
 if __name__ == '__main__':
     os.environ['NIGHTSHADES_DOTENV'] = '.test.env'
