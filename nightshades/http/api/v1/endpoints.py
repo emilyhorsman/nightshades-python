@@ -55,8 +55,26 @@ def show_unit(conn, uuid):
 
     return jsonify(ret), 200
 
-# Mark as complete
-@api.route('/units/<uuid>', methods=['PUT'])
+@api.route('/units/<uuid>', methods=['PATCH'])
+@validate_payload('unit')
 @validate_uuid
-def update_unit(uuid):
-    return 'PUT'
+@with_connection
+def update_unit(conn, uuid):
+    payload = request.get_json()['data']
+    if payload.get('attributes', {}).get('completed', False):
+        unit = nightshades.api.Unit(conn, session['user_id'], uuid)
+        res = unit.mark_complete()
+        if not res[0]:
+            raise errors.InvalidAPIUsage('Unit not completed')
+
+        ret = {}
+        ret['data'] = {
+            'type': 'unit',
+            'id': uuid,
+            'attributes': { 'completed': True },
+            'links': { 'self': url_for('.show_unit', uuid=uuid) }
+        }
+
+        return jsonify(ret), 200
+
+    raise errors.InvalidAPIUsage('No operations to perform')
