@@ -4,7 +4,7 @@ from .decorators import validate_uuid, validate_payload, with_connection
 
 import nightshades
 
-from flask import request, session, jsonify, url_for
+from flask import request, session, jsonify, url_for, abort
 
 # Get the current users units
 @api.route('/units')
@@ -38,8 +38,22 @@ def create_unit(conn):
 # Get time delta
 @api.route('/units/<uuid>')
 @validate_uuid
-def show_unit(uuid):
-    return 'GET'
+@with_connection
+def show_unit(conn, uuid):
+    unit  = nightshades.api.Unit(conn, session['user_id'], uuid)
+    delta = unit.time_left()
+    if not delta:
+        abort(404)
+
+    ret = {}
+    ret['data'] = {
+        'type': 'unit',
+        'id': uuid,
+        'attributes': { 'delta': delta.total_seconds() },
+        'links': { 'self': url_for('.show_unit', uuid=uuid) }
+    }
+
+    return jsonify(ret), 200
 
 # Mark as complete
 @api.route('/units/<uuid>', methods=['PUT'])

@@ -23,7 +23,11 @@ class Unit:
         with self.conn.cursor() as curs:
             curs.execute(sql, self.sql_opts)
             res = curs.fetchone()
-            return res[0]
+
+        if not res:
+            return False
+
+        return res[0]
 
     def mark_complete(self):
         sql = form_update(
