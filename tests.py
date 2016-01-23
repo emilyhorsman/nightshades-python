@@ -3,6 +3,7 @@
 import os
 import datetime
 import unittest
+from uuid import UUID
 
 from test_helpers import (
         with_connection, with_connection_and_cursor,
@@ -285,8 +286,10 @@ class TestUserStartUnit(unittest.TestCase):
         user    = nightshades.api.User(conn, user_id)
         res     = user.start_unit(seconds=1200)
 
-        self.assertEqual(res[0].count('-'), 4,
-                msg='First unit tuple item does not look like a UUID.')
+        try:
+            UUID(res[0], version=4)
+        except ValueError:
+            self.fail('First unit tuple item is not a UUID.')
 
         self.assertEqual(res[1].total_seconds(), 1200,
                 msg='Did not receive expected delta, {}'.format(res))
