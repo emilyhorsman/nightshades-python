@@ -1,2 +1,3 @@
 [run]
 source = nightshades
+omit   = nightshades/http/seed.py

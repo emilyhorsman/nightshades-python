@@ -1,3 +1,5 @@
+import os
+
 import nightshades
 
 if __name__ == '__main__':
