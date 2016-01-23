@@ -22,7 +22,7 @@ def load_dotenv():
     custom_location = os.environ.get('NIGHTSHADES_DOTENV')
     if custom_location:
         path = os.path.expanduser(custom_location)
-    else:
+    else: # pragma: no cover
         path = os.path.join(os.getcwd(), '.env')
 
     dotenv.load_dotenv(path)

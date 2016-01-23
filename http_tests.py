@@ -30,6 +30,20 @@ class TestAPIv1(TestCase):
         self.assert200(res)
 
     @with_user_in_session
+    def test_validate_payload_fails_on_no_data(self):
+        res = self.client.post(url_for('api.v1.create_unit'),
+                data = dumps({}),
+                content_type = 'application/json')
+        self.assertStatus(res, 400)
+
+    @with_user_in_session
+    def test_validate_payload_fails_with_wrong_type(self):
+        res = self.client.post(url_for('api.v1.create_unit'),
+                data = dumps({ 'data': { 'type': 'user' } }),
+                content_type = 'application/json')
+        self.assertStatus(res, 400)
+
+    @with_user_in_session
     def test_create_unit(self):
         payload = {
             'data': {

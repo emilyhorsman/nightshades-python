@@ -26,7 +26,7 @@ def validate_payload(type):
             if not payload or 'data' not in payload:
                 raise errors.InvalidAPIUsage('No data')
 
-            if payload['data']['type'] != type:
+            if payload['data'].get('type') != type:
                 raise errors.InvalidAPIUsage('Wrong type, expected {}'.format(type))
 
             return func(*args, **kwargs)
