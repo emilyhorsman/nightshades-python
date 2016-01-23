@@ -114,18 +114,20 @@ class User:
             'user_id': self.user_id
         }
 
-    def get_units(self, show_incomplete=False):
-        completion = []
-        if not show_incomplete:
-            completion.append("completed='t'")
-
+    def get_units(self, date_a, date_b):
+        # Filter date criteria only with start_time and not expiry_time, since
+        # a unit started at 23:59 should count as this day, despite expiring
+        # on the next day.
         sql = form_select(
             select = ('id, completed, start_time, expiry_time', 'nightshades.units'),
-            where  = ['user_id=%(user_id)s'] + completion,
-            order  = 'expiry_time DESC',)
+            where  = ('user_id=%(user_id)s',
+                      'start_time BETWEEN SYMMETRIC %(a)s AND %(b)s',),
+            order  = 'start_time DESC',)
 
+        opts = self.sql_opts.copy()
+        opts['a'], opts['b'] = date_a, date_b
         with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
+            curs.execute(sql, opts)
             return curs.fetchall()
 
     # Returns True if a unit is currently in progress. There is a particular

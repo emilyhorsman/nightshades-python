@@ -277,6 +277,48 @@ class TestUserCancelOngoingUnit(unittest.TestCase):
                     msg='Expired unit was not supposed to be deleted.')
 
 
+# Test User#get_units
+class TestUserGetUnits(unittest.TestCase):
+    @with_connection_and_cursor
+    def test_get_units(self, conn, curs):
+        # This unit should not be included in the filter.
+        user_id, unit_id_noa = create_user_with_unit(conn,
+                completed   = True,
+                start_time  = "TIMESTAMP WITH TIME ZONE '2016-01-02 23:59:59.999999-5'",
+                expiry_time = "TIMESTAMP WITH TIME ZONE '2016-01-03 00:00:01.000000-5'")
+
+        # This unit should not be included in the filter.
+        unit_id_nob = create_unit(curs,
+                user_id     = user_id,
+                completed   = False,
+                start_time  = "TIMESTAMP WITH TIME ZONE '2016-01-10 00:00:00.0000001-5'",
+                expiry_time = "TIMESTAMP WITH TIME ZONE '2016-01-10 00:00:01.0000000-5'")
+
+        unit_id_yesa = create_unit(curs,
+                user_id     = user_id,
+                completed   = True,
+                start_time  = "TIMESTAMP WITH TIME ZONE '2016-01-03 00:00:00.000000-5'",
+                expiry_time = "TIMESTAMP WITH TIME ZONE '2016-01-03 00:00:01.000000-5'")
+
+        unit_id_yesb = create_unit(curs,
+                user_id     = user_id,
+                completed   = True,
+                start_time  = "TIMESTAMP WITH TIME ZONE '2016-01-09 23:59:59.999999-5'",
+                expiry_time = "TIMESTAMP WITH TIME ZONE '2016-01-10 00:00:01.000000-5'")
+
+        user = nightshades.api.User(conn, user_id)
+        tz   = datetime.timezone(datetime.timedelta(hours = -5))
+        res  = user.get_units(
+                    datetime.datetime(2016, 1, 3, tzinfo = tz),
+                    datetime.datetime(2016, 1, 9, 23, 59, 59, 999999, tzinfo = tz))
+
+
+        self.assertEqual(len(res), 2)
+
+        # Most recent start_time comes first.
+        self.assertEqual(res[0][0], unit_id_yesb)
+        self.assertEqual(res[1][0], unit_id_yesa)
+
 # Test User#start_unit
 class TestUserStartUnit(unittest.TestCase):
     # Should be able to start a new unit and receive back a uuid and delta.
