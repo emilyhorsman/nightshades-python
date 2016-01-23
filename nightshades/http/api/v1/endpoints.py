@@ -1,15 +1,37 @@
+import datetime
+
 from . import api
 from . import errors
 from .decorators import validate_uuid, validate_payload, with_connection
 
 import nightshades
-
 from flask import request, session, jsonify, url_for, abort
+
+def serialize_unit(unit):
+    return {
+        'type': 'unit',
+        'id': unit[0],
+        'attributes': {
+            'completed':   unit[1],
+            'start_time':  unit[2],
+            'expiry_time': unit[3]
+        }
+    }
 
 # Get the current users units
 @api.route('/units')
-def index_units():
-    return 'GET'
+@with_connection
+def index_units(conn):
+    user  = nightshades.api.User(conn, session['user_id'])
+
+    now = datetime.datetime.now()
+    beginning_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_today       = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    units = user.get_units(beginning_of_today, end_of_today)
+
+    ret = {}
+    ret['data'] = list(map(serialize_unit, units))
+    return jsonify(ret), 200
 
 # Create a new unit and return the UUID and time delta
 @api.route('/units', methods=['POST'])

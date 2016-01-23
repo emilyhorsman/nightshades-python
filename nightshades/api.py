@@ -119,7 +119,8 @@ class User:
         # a unit started at 23:59 should count as this day, despite expiring
         # on the next day.
         sql = form_select(
-            select = ('id, completed, start_time, expiry_time', 'nightshades.units'),
+            select = ('id, completed, start_time, expiry_time',
+                      'nightshades.units'),
             where  = ('user_id=%(user_id)s',
                       'start_time BETWEEN SYMMETRIC %(a)s AND %(b)s',),
             order  = 'start_time DESC',)

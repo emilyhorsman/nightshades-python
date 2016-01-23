@@ -10,7 +10,8 @@ from flask.ext.testing import TestCase
 import nightshades.http
 import nightshades.query_helpers
 from test_helpers import (
-        with_user_in_session, with_connection_and_cursor
+        with_user_in_session, with_connection_and_cursor,
+        create_unit
 )
 
 class TestAPIv1(TestCase):
@@ -189,6 +190,35 @@ class TestAPIv1(TestCase):
         url = url_for('api.v1.show_unit', uuid='16fd2706-8baf-433b-82eb-8c7fada8-7da')
         res = self.client.get(url)
         self.assert404(res)
+
+    @with_user_in_session
+    @with_connection_and_cursor
+    def test_index_units(self, conn, curs):
+        with self.client.session_transaction() as session:
+            user_id = session['user_id']
+
+        with conn.cursor() as curs:
+            unit_id_a = create_unit(curs,
+                user_id     = user_id,
+                completed   = False,
+                start_time  = "NOW()",
+                expiry_time = "NOW() + INTERVAL '25 minutes'")
+
+
+            unit_id_b = create_unit(curs,
+                user_id     = user_id,
+                completed   = True,
+                start_time  = "NOW() - INTERVAL '30 minutes'",
+                expiry_time = "NOW() - INTERVAL '25 minutes'")
+
+            conn.commit()
+
+        res = self.client.get(url_for('api.v1.index_units'))
+        ret = res.json['data']
+        self.assertStatus(res, 200)
+        self.assertEqual(ret[0]['id'], unit_id_a)
+        self.assertEqual(ret[1]['id'], unit_id_b)
+
 
 
 if __name__ == '__main__':
