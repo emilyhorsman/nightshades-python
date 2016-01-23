@@ -18,8 +18,8 @@ def index_units():
 def create_unit(conn):
     user    = nightshades.api.User(conn, session['user_id'])
     payload = request.get_json()['data']
-    minutes = payload.get('attributes', {}).get('delta', 1500) / 60
-    result  = user.start_unit(minutes)
+    seconds = payload.get('attributes', {}).get('delta', 1500)
+    result  = user.start_unit(seconds)
 
     if not result[0]:
         raise errors.InvalidAPIUsage(result[1])

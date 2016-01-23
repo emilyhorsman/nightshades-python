@@ -283,7 +283,7 @@ class TestUserStartUnit(unittest.TestCase):
     def test_start_unit(self, conn, curs):
         user_id = create_user(curs)
         user    = nightshades.api.User(conn, user_id)
-        res     = user.start_unit(minutes=20)
+        res     = user.start_unit(seconds=1200)
 
         self.assertEqual(res[0].count('-'), 4,
                 msg='First unit tuple item does not look like a UUID.')

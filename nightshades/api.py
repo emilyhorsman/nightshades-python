@@ -161,17 +161,17 @@ class User:
 
     # Returns back a uuid (which basically acts as a nonce) and a time delta.
     # Returns False if a unit is already ongoing.
-    def start_unit(self, minutes=25):
+    def start_unit(self, seconds=1500):
         if self.is_unit_ongoing():
             return (False, 'This user already has an ongoing unit.',)
 
         sql = form_insert(
             insert    = 'nightshades.units (user_id, start_time, expiry_time)',
-            values    = "%(user_id)s, NOW(), NOW() + INTERVAL '%(minutes)s minutes'",
+            values    = "%(user_id)s, NOW(), NOW() + INTERVAL '%(seconds)s seconds'",
             returning = 'id, expiry_time - NOW()',)
 
         opts = self.sql_opts.copy()
-        opts['minutes'] = minutes
+        opts['seconds'] = seconds
 
         with self.conn.cursor() as curs:
             curs.execute(sql, opts)
