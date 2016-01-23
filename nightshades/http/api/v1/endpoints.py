@@ -15,6 +15,9 @@ def serialize_unit(unit):
             'completed':   unit[1],
             'start_time':  unit[2],
             'expiry_time': unit[3]
+        },
+        'links': {
+            'self': url_for('.show_unit', uuid=unit[0])
         }
     }
 
@@ -30,7 +33,8 @@ def index_units(conn):
     units = user.get_units(beginning_of_today, end_of_today)
 
     ret = {}
-    ret['data'] = list(map(serialize_unit, units))
+    ret['links'] = { 'self': url_for('.index_units') }
+    ret['data']  = list(map(serialize_unit, units))
     return jsonify(ret), 200
 
 # Create a new unit and return the UUID and time delta
