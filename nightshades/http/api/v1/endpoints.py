@@ -7,19 +7,25 @@ from .decorators import validate_uuid, validate_payload, with_connection
 import nightshades
 from flask import request, session, jsonify, url_for, abort
 
-def serialize_unit(unit):
-    return {
+def serialize_unit_data(unit):
+    data = {
         'type': 'unit',
         'id': unit[0],
-        'attributes': {
-            'completed':   unit[1],
-            'start_time':  unit[2],
-            'expiry_time': unit[3]
-        },
         'links': {
             'self': url_for('.show_unit', uuid=unit[0])
         }
     }
+
+    if isinstance(unit[1], dict):
+        data['attributes'] = unit[1]
+    else:
+        data['attributes'] = {
+            'completed':   unit[1],
+            'start_time':  unit[2],
+            'expiry_time': unit[3]
+        }
+
+    return data
 
 # Get the current users units
 @api.route('/units')
@@ -34,7 +40,7 @@ def index_units(conn):
 
     ret = {}
     ret['links'] = { 'self': url_for('.index_units') }
-    ret['data']  = list(map(serialize_unit, units))
+    ret['data']  = list(map(serialize_unit_data, units))
     return jsonify(ret), 200
 
 # Create a new unit and return the UUID and time delta
@@ -52,12 +58,9 @@ def create_unit(conn):
 
     uuid, delta = result
     ret = {}
-    ret['data'] = {
-        'type': 'unit',
-        'id': uuid,
-        'attributes': { 'delta': delta.total_seconds() },
-        'links': { 'self': url_for('.show_unit', uuid=uuid) }
-    }
+    ret['data'] = serialize_unit_data(
+            (uuid, { 'delta': delta.total_seconds() },)
+            )
 
     return jsonify(ret), 201
 
@@ -72,12 +75,9 @@ def show_unit(conn, uuid):
         abort(404)
 
     ret = {}
-    ret['data'] = {
-        'type': 'unit',
-        'id': uuid,
-        'attributes': { 'delta': delta.total_seconds() },
-        'links': { 'self': url_for('.show_unit', uuid=uuid) }
-    }
+    ret['data'] = serialize_unit_data(
+            (uuid, { 'delta': delta.total_seconds() },)
+            )
 
     return jsonify(ret), 200
 
@@ -94,12 +94,9 @@ def update_unit(conn, uuid):
             raise errors.InvalidAPIUsage('Unit not completed')
 
         ret = {}
-        ret['data'] = {
-            'type': 'unit',
-            'id': uuid,
-            'attributes': { 'completed': True },
-            'links': { 'self': url_for('.show_unit', uuid=uuid) }
-        }
+        ret['data'] = serialize_unit_data(
+                (uuid, { 'completed': True },)
+                )
 
         return jsonify(ret), 200
 
