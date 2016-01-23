@@ -7,4 +7,4 @@ if __name__ == '__main__':
 
     # Find me in nightshades/http/__init__.py!
     from nightshades.http import app
-    app.run()
+    app.run(host = '0.0.0.0')
