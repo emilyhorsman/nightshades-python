@@ -21,8 +21,8 @@ def serialize_unit_data(unit):
     else:
         data['attributes'] = {
             'completed':   unit[1],
-            'start_time':  unit[2],
-            'expiry_time': unit[3]
+            'start_time':  unit[2].isoformat(),
+            'expiry_time': unit[3].isoformat()
         }
 
     return data
