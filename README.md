@@ -1,6 +1,6 @@
 # nightshades
 
-[![Coverage Status](https://coveralls.io/repos/github/emilyhorsman/nightshades-python/badge.svg?branch=development)](https://coveralls.io/github/emilyhorsman/nightshades-python?branch=development) [![Build Status](https://travis-ci.org/emilyhorsman/nightshades-python.svg?branch=development)](https://travis-ci.org/emilyhorsman/nightshades-python)
+[![Coverage Status](https://coveralls.io/repos/github/emilyhorsman/nightshades-python/badge.svg?branch=development)](https://coveralls.io/github/emilyhorsman/nightshades-python?branch=development) [![Build Status](https://travis-ci.org/emilyhorsman/nightshades-python.svg?branch=development)](https://travis-ci.org/emilyhorsman/nightshades-python) [![Code Climate](https://codeclimate.com/github/emilyhorsman/nightshades-python/badges/gpa.svg)](https://codeclimate.com/github/emilyhorsman/nightshades-python)
 
 A Pomodoro library written with Python 3 and postgresql for storage.
 
