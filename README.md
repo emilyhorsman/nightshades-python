@@ -13,8 +13,6 @@ A Pomodoro library written with Python 3 and postgresql for storage.
 
 ## Goals
 
-Eventually this will serve a REST API over HTTP which any client could use.
-
 I’m thinking of using something like
 [maxogden/menubar](https://github.com/maxogden/menubar)
 to create a decoupled web client that could plop into a menu bar.
