@@ -33,11 +33,3 @@ def validate_payload(type):
 
         return wrapped
     return decorator
-
-def with_connection(func):
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        with nightshades.connection() as conn:
-            return func(conn, *args, **kwargs)
-
-    return wrapped

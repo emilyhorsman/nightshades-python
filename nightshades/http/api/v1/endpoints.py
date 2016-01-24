@@ -2,11 +2,12 @@ import datetime
 
 from . import api
 from . import errors
-from .authentication import require_user
-from .decorators import validate_uuid, validate_payload, with_connection
+from .authentication import identity
+from .decorators import validate_uuid, validate_payload
 
 import nightshades
-from flask import request, jsonify, url_for, abort
+from nightshades.http.helpers import conn
+from flask import request, jsonify, url_for, abort, g
 
 def serialize_unit_data(unit):
     data = {
@@ -30,10 +31,8 @@ def serialize_unit_data(unit):
 
 # Get the current users units
 @api.route('/units')
-@require_user
-@with_connection
-def index_units(conn, user_id):
-    user = nightshades.api.User(conn, user_id)
+def index_units():
+    user = nightshades.api.User(conn(), identity())
 
     now = datetime.datetime.now()
     beginning_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -48,10 +47,8 @@ def index_units(conn, user_id):
 # Create a new unit and return the UUID and time delta
 @api.route('/units', methods=['POST'])
 @validate_payload(type='unit')
-@require_user
-@with_connection
-def create_unit(conn, user_id):
-    user    = nightshades.api.User(conn, user_id)
+def create_unit():
+    user    = nightshades.api.User(conn(), identity())
     payload = request.get_json()['data']
     seconds = payload.get('attributes', {}).get('delta', 1500)
     result  = user.start_unit(seconds)
@@ -70,10 +67,8 @@ def create_unit(conn, user_id):
 # Get time delta
 @api.route('/units/<uuid>')
 @validate_uuid
-@require_user
-@with_connection
-def show_unit(conn, user_id, uuid):
-    unit  = nightshades.api.Unit(conn, user_id, uuid)
+def show_unit(uuid):
+    unit  = nightshades.api.Unit(conn(), identity(), uuid)
     delta = unit.time_left()
     if not delta:
         abort(404)
@@ -88,12 +83,10 @@ def show_unit(conn, user_id, uuid):
 @api.route('/units/<uuid>', methods=['PATCH'])
 @validate_payload('unit')
 @validate_uuid
-@require_user
-@with_connection
-def update_unit(conn, user_id, uuid):
+def update_unit(uuid):
     payload = request.get_json()['data']
     if payload.get('attributes', {}).get('completed', False):
-        unit = nightshades.api.Unit(conn, user_id, uuid)
+        unit = nightshades.api.Unit(conn(), identity(), uuid)
         res = unit.mark_complete()
         if not res[0]:
             raise errors.InvalidAPIUsage('Unit not completed')

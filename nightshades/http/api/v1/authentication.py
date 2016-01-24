@@ -1,7 +1,7 @@
 from functools import wraps
 
 import jwt
-from flask import abort, request, current_app, jsonify
+from flask import abort, request, current_app, jsonify, g
 
 from . import api
 from . import errors
@@ -13,6 +13,10 @@ def authenticate(user_id):
     return jsonify(data), 200
 
 def identity():
+    user_id = g.get('user_id', None)
+    if user_id is not None:
+        return user_id
+
     auth_header = request.headers.get('Authorization', None)
     if not auth_header:
         raise errors.InvalidAPIUsage('Missing Authorization header')
@@ -26,16 +30,10 @@ def identity():
 
     try:
         payload = jwt.decode(symbols[1], current_app.secret_key, algorithm = 'HS256')
-        return payload['user_id']
+        g.user_id = payload['user_id']
+        return g.user_id
     except:
         raise errors.InvalidAPIUsage('Invalid Authorization token')
-
-def require_user(func):
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        return func(identity(), *args, **kwargs)
-
-    return wrapped
 
 @api.route('/auth', methods=['POST'])
 def authentication():

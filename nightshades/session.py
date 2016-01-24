@@ -3,16 +3,10 @@ import contextlib
 
 import psycopg2
 
-class connection(contextlib.ContextDecorator):
-    def __enter__(self):
-        self.db_conn_str = os.environ.get('NIGHTSHADES_POSTGRESQL_DB_STR',
-                                default = 'dbname=nightshades')
-
-        self.connection = psycopg2.connect(self.db_conn_str)
-        return self.connection
-
-    def __exit__(self, *exc):
-        self.connection.close()
+def connection():
+    k = 'NIGHTSHADES_POSTGRESQL_DB_STR'
+    db_conn_str = os.environ.get(k, default = 'dbname=nightshades')
+    return psycopg2.connect(db_conn_str)
 
 def load_dotenv():
     import dotenv
