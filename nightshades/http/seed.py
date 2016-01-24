@@ -1,6 +1,5 @@
 """
-This provides useful seed data meant for development only. It also sets a
-user_id in the session before all requests.
+This provides useful seed data meant for development only.
 """
 
 import os
@@ -8,16 +7,9 @@ import os
 from . import app
 
 import nightshades
-from flask import session, current_app
+from flask import current_app
 
 if bool(os.environ.get('NIGHTSHADES_DEVELOPMENT_SEED')) and app.debug:
-    @app.before_request
-    def before_request():
-        with app.app_context():
-            session['user_id'] = current_app.seed_user_id
-            app.logger.debug('User ID set by seed mode: {}'.format(session['user_id']))
-
-
     def seed():
         seed_user_sql  = "INSERT INTO nightshades.users (name) VALUES ('Alice') RETURNING id"
         seed_units_sql = """

@@ -24,13 +24,16 @@ def identity():
     if symbols[0] != 'JWT':
         raise errors.InvalidAPIUsage('Unsupported Authorization type')
 
-    payload = jwt.decode(symbols[1], current_app.secret_key, algorithm = 'HS256')
-    return payload['user_id']
+    try:
+        payload = jwt.decode(symbols[1], current_app.secret_key, algorithm = 'HS256')
+        return payload['user_id']
+    except:
+        raise errors.InvalidAPIUsage('Invalid Authorization token')
 
 def require_user(func):
     @wraps(func)
     def wrapped(*args, **kwargs):
-        return func(identity, *args, **kwargs)
+        return func(identity(), *args, **kwargs)
 
     return wrapped
 

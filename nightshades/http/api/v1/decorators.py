@@ -40,5 +40,4 @@ def with_connection(func):
         with nightshades.connection() as conn:
             return func(conn, *args, **kwargs)
 
-
     return wrapped

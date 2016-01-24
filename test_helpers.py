@@ -19,21 +19,6 @@ def with_connection_and_cursor(func):
 
     return with_context_managers
 
-def with_user_in_session(func):
-    @wraps(func)
-    def wrapped(self, *args, **kwargs):
-        with nightshades.connection() as conn:
-            with conn.cursor() as curs:
-                user_id = create_user(curs)
-                conn.commit()
-
-        with self.client.session_transaction() as session:
-            session['user_id'] = user_id
-
-        return func(self, *args, **kwargs)
-
-    return wrapped
-
 def create_user(curs):
     curs.execute("INSERT INTO nightshades.users (name) VALUES ('Alice') RETURNING id")
     return curs.fetchone()[0]
