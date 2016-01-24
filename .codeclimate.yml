@@ -10,6 +10,12 @@ engines:
             python_version: 3
     pep8:
         enabled: true
+
 ratings:
     paths:
         - "nightshades/**/*.py"
+
+exclude_paths:
+    - nightshades/http/seed.py
+    - http_tests.py
+    - tests.py
