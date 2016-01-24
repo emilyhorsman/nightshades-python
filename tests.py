@@ -346,6 +346,16 @@ class TestUserStartUnit(unittest.TestCase):
         self.assertFalse(res[0],
                 msg='Should not have started second ongoing unit.')
 
+    # Should not a start a unit under two minutes in length.
+    @with_connection_and_cursor
+    def test_minimum_unit_length(self, conn, curs):
+        user_id = create_user(curs)
+        user    = nightshades.api.User(conn, user_id)
+
+        res = user.start_unit(seconds=119)
+        self.assertFalse(res[0])
+        self.assertIn('at least 2 minutes', res[1])
+
 from http_tests import *
 
 if __name__ == '__main__':

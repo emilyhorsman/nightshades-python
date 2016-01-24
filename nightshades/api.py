@@ -169,6 +169,9 @@ class User:
     # Returns back a uuid (which basically acts as a nonce) and a time delta.
     # Returns False if a unit is already ongoing.
     def start_unit(self, seconds=1500):
+        if seconds < 120:
+            return (False, 'Unit must be at least 2 minutes')
+
         if self.is_unit_ongoing():
             return (False, 'This user already has an ongoing unit.',)
 
