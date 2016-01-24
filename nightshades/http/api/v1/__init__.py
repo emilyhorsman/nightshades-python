@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 
 api = Blueprint('api.v1', __name__, url_prefix='/v1')
 
+from . import authentication
 from . import endpoints
 from . import errors
 
