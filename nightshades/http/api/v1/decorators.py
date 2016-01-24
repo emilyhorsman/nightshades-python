@@ -1,10 +1,10 @@
 from uuid import UUID
 from functools import wraps
 
-from flask import abort, request, jsonify
+from flask import abort, request
 
 from . import errors
-import nightshades
+
 
 def validate_uuid(func):
     @wraps(func)
@@ -17,6 +17,7 @@ def validate_uuid(func):
         return func(*args, **kwargs)
 
     return wrapped
+
 
 def validate_payload(type):
     def decorator(func):

@@ -7,7 +7,8 @@ from .decorators import validate_uuid, validate_payload
 
 import nightshades
 from nightshades.http.helpers import conn
-from flask import request, jsonify, url_for, abort, g
+from flask import request, jsonify, url_for, abort
+
 
 def serialize_unit_data(unit):
     data = {
@@ -29,6 +30,7 @@ def serialize_unit_data(unit):
 
     return data
 
+
 # Get the current users units
 @api.route('/units')
 def index_units():
@@ -43,6 +45,7 @@ def index_units():
     ret['links'] = { 'self': url_for('.index_units') }
     ret['data']  = list(map(serialize_unit_data, units))
     return jsonify(ret), 200
+
 
 # Create a new unit and return the UUID and time delta
 @api.route('/units', methods=['POST'])
@@ -59,10 +62,10 @@ def create_unit():
     uuid, delta = result
     ret = {}
     ret['data'] = serialize_unit_data(
-            (uuid, { 'delta': delta.total_seconds() },)
-            )
+        (uuid, { 'delta': delta.total_seconds() },))
 
     return jsonify(ret), 201
+
 
 # Get time delta
 @api.route('/units/<uuid>')
@@ -75,10 +78,10 @@ def show_unit(uuid):
 
     ret = {}
     ret['data'] = serialize_unit_data(
-            (uuid, { 'delta': delta.total_seconds() },)
-            )
+        (uuid, { 'delta': delta.total_seconds() },))
 
     return jsonify(ret), 200
+
 
 @api.route('/units/<uuid>', methods=['PATCH'])
 @validate_payload('unit')
@@ -93,8 +96,7 @@ def update_unit(uuid):
 
         ret = {}
         ret['data'] = serialize_unit_data(
-                (uuid, { 'completed': True },)
-                )
+            (uuid, { 'completed': True },))
 
         return jsonify(ret), 200
 

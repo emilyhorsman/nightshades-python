@@ -9,6 +9,7 @@ def form_select(*args, **kwargs):
 
     return ' '.join(symbols) + ';'
 
+
 def form_insert(*args, **kwargs):
     symbols  = ['INSERT INTO', kwargs['insert']]
     symbols += ['VALUES (', kwargs['values'], ')']
@@ -18,6 +19,7 @@ def form_insert(*args, **kwargs):
 
     return ' '.join(symbols) + ';'
 
+
 def form_delete(*args, **kwargs):
     symbols = ['DELETE FROM', kwargs['delete']]
 
@@ -25,6 +27,7 @@ def form_delete(*args, **kwargs):
         symbols += ['WHERE', ' AND '.join(kwargs['where'])]
 
     return ' '.join(symbols) + ';'
+
 
 def form_update(*args, **kwargs):
     symbols = ['UPDATE', kwargs['update'][0], 'SET', kwargs['update'][1]]

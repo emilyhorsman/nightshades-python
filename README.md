@@ -97,6 +97,15 @@ https://pypi.python.org/pypi/nightshades
 $ pip install nightshades
 ```
 
+## Style
+
+Configuration already exists in `tox.ini`, using `flake8`:
+
+```
+$ pip install flake8
+$ flake8
+```
+
 ## Coveralls.io
 
 Make sure you have a `.coveralls.yml` with the `repo_token` from Coveralls.io.

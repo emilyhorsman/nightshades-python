@@ -3,6 +3,7 @@ from .query_helpers import form_select, form_insert, form_delete, form_update
 # This is how long one has after the expiry_time to mark a unit as complete.
 expiry_interval = "INTERVAL '5 minutes'"
 
+
 class Unit:
     def __init__(self, conn, user_id, unit_id):
         self.conn = conn
@@ -57,15 +58,14 @@ class Unit:
 
         # Get the old ones out of the way
         remove_sql = form_delete(
-                delete = 'nightshades.unit_tags',
-                where  = ('unit_id=%(id)s',))
-
+            delete = 'nightshades.unit_tags',
+            where  = ('unit_id=%(id)s',))
 
         # ....aaaaand the messy bit to bring in the new ones.
         invalids    = []
         insert_opts = []
         mogrify_me  = []
-        for _tag in set(tag_csv.split(',')): # Unique only
+        for _tag in set(tag_csv.split(',')):  # Unique only
             # Skip any blank tags
             tag = _tag.strip()
             if not tag:
@@ -164,7 +164,9 @@ class User:
             # Something fishy has happened. There should only ever be one
             # ongoing unit. For caution, we'll rollback this statement.
             self.conn.rollback()
-            return (False, 'Expected DELETE statement to affect exactly 1 row', res)
+            return (False,
+                    'Expected DELETE statement to affect exactly 1 row',
+                    res)
 
     # Returns back a uuid (which basically acts as a nonce) and a time delta.
     # Returns False if a unit is already ongoing.

@@ -1,16 +1,16 @@
-from functools import wraps
-
 import jwt
-from flask import abort, request, current_app, jsonify, g
+from flask import request, current_app, jsonify, g
 
 from . import api
 from . import errors
+
 
 def authenticate(user_id):
     payload = dict(user_id=user_id)
     token   = jwt.encode(payload, current_app.secret_key, algorithm = 'HS256')
     data    = { 'access_token': token.decode('utf-8') }
     return jsonify(data), 200
+
 
 def identity():
     user_id = g.get('user_id', None)
@@ -34,6 +34,7 @@ def identity():
         return g.user_id
     except:
         raise errors.InvalidAPIUsage('Invalid Authorization token')
+
 
 @api.route('/auth', methods=['POST'])
 def authentication():

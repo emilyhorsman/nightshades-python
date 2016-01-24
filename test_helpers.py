@@ -1,6 +1,5 @@
-from functools import wraps
-
 import nightshades
+
 
 # Decorator to pass the connection into the test function.
 def with_connection(func):
@@ -9,6 +8,7 @@ def with_connection(func):
             func(self, conn)
 
     return with_context_manager
+
 
 # Decorator to pass the connection and a new cursor into the test function.
 def with_connection_and_cursor(func):
@@ -19,9 +19,11 @@ def with_connection_and_cursor(func):
 
     return with_context_managers
 
+
 def create_user(curs):
     curs.execute("INSERT INTO nightshades.users (name) VALUES ('Alice') RETURNING id")
     return curs.fetchone()[0]
+
 
 def create_unit(curs, **kwargs):
     keys    = '(user_id, completed, start_time, expiry_time)'
@@ -31,6 +33,7 @@ def create_unit(curs, **kwargs):
     curs.execute(sql, (kwargs['user_id'], kwargs['completed'],))
 
     return curs.fetchone()[0]
+
 
 def create_user_with_unit(conn, **kwargs):
     with conn.cursor() as curs:

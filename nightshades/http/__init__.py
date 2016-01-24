@@ -3,13 +3,14 @@ import os
 from .api.v1 import api
 from . import helpers
 
-from flask import Flask, jsonify, g
+from flask import Flask, g
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('NIGHTSHADES_APP_SECRET')
 app.debug      = os.environ.get('ENVIRONMENT') == 'development'
 
 app.register_blueprint(api)
+
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -19,6 +20,6 @@ def close_connection(exception):
 
 from . import errorhandlers
 
-if bool(os.environ.get('NIGHTSHADES_DEVELOPMENT_SEED')) and app.debug: # pragma: no cover
-    from . import seed
-    seed.seed()
+if bool(os.environ.get('NIGHTSHADES_DEVELOPMENT_SEED')) and app.debug:
+    from . import seed  # pragma: no cover
+    seed.seed()  # pragma: no cover

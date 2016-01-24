@@ -1,5 +1,3 @@
-from flask import jsonify
-
 class InvalidAPIUsage(Exception):
     def __init__(self, message):
         Exception.__init__(self)
