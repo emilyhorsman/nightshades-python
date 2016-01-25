@@ -2,7 +2,15 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/emilyhorsman/nightshades-python/badge.svg?branch=development)](https://coveralls.io/github/emilyhorsman/nightshades-python?branch=development) [![Build Status](https://travis-ci.org/emilyhorsman/nightshades-python.svg?branch=development)](https://travis-ci.org/emilyhorsman/nightshades-python) [![Code Climate](https://codeclimate.com/github/emilyhorsman/nightshades-python/badges/gpa.svg)](https://codeclimate.com/github/emilyhorsman/nightshades-python) ![Python 3.3, 3.4, 3.5](https://img.shields.io/badge/python-3.3%2C%203.4%2C%203.5-blue.svg)
 
-A Pomodoro library written with Python 3 and postgresql for storage.
+A [JSON API](http://jsonapi.org/) for productivity tracking (using Pomodoros).
+Written for Python 3+ with [Flask](http://flask.pocoo.org/) handling HTTP
+requests and postgresql for storage.
+
+This repo contains both an internal and external API. The external JSON API
+uses token-based authentication to interact with a client. The internal API
+consists of some Python classes that interact with postgresql. The external
+API lives entirely in `nightshades/http/` and the internal API at the root of
+`nightshades/`.
 
 ## Why “nightshades”?
 
@@ -10,12 +18,6 @@ A Pomodoro library written with Python 3 and postgresql for storage.
 * Because “tomatoes” is the common work around for this
 * Because tomatoes are part of the [nightshade family](https://en.wikipedia.org/wiki/Solanaceae) (Solanacea)
 * Because I’m not very creative…
-
-## Goals
-
-I’m thinking of using something like
-[maxogden/menubar](https://github.com/maxogden/menubar)
-to create a decoupled web client that could plop into a menu bar.
 
 ## Development
 
@@ -84,6 +86,8 @@ Your `.env` should look something like this:
 
 ```
 NIGHTSHADES_POSTGRESQL_DB_STR='dbname=somedatabasename'
+NIGHTSHADES_APP_SECRET=somerandomlygeneratedsecretkey
+ENVIRONMENT=development
 ```
 
 ## pypi
