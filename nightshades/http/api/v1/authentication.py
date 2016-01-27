@@ -12,24 +12,29 @@ def authenticate(user_id):
     return jsonify(data), 200
 
 
-def identity():
-    user_id = g.get('user_id', None)
-    if user_id is not None:
-        return user_id
-
-    auth_header = request.headers.get('Authorization', None)
-    if not auth_header:
+def token_from_authorization_header(header):
+    if not header:
         raise errors.InvalidAPIUsage('Missing Authorization header')
 
-    symbols = auth_header.split()
+    symbols = header.split()
     if len(symbols) != 2:
         raise errors.InvalidAPIUsage('Invalid Authorization header')
 
     if symbols[0] != 'JWT':
         raise errors.InvalidAPIUsage('Unsupported Authorization type')
 
+    return symbols[1]
+
+
+def identity():
+    user_id = g.get('user_id', None)
+    if user_id is not None:
+        return user_id
+
+    token = token_from_authorization_header(request.headers.get('Authorization'))
+
     try:
-        payload = jwt.decode(symbols[1], current_app.secret_key, algorithm = 'HS256')
+        payload = jwt.decode(token, current_app.secret_key, algorithm = 'HS256')
         g.user_id = payload['user_id']
         return g.user_id
     except:
