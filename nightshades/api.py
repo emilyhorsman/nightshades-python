@@ -191,3 +191,56 @@ class User:
             self.conn.commit()
 
             return row
+
+
+class UserAuthentication:
+    def __init__(self, conn, provider, provider_user_id, opts={}):
+        self.conn = conn
+        self.provider = provider
+        self.provider_user_id = provider_user_id
+        self.opts = opts
+
+        self.user_id = self.login_or_register()
+
+    def login_or_register(self):
+        user_id = self.try_login()
+        if user_id:
+            return user_id
+
+        user_id = self.register()
+        if user_id:
+            return user_id
+
+        return (False, 'Could not login or create user')
+
+    def try_login(self):
+        pass
+
+    def register(self):
+        insert_user_sql = form_insert(
+            insert    = 'nightshades.users (name)',
+            values    = '%(name)s',
+            returning = 'id')
+
+        insert_user_opts = { 'name': self.opts.name }
+
+        insert_provider_sql = form_insert(
+            insert = 'nightshades.user_login_providers (user_id, provider, provider_user_id)',
+            values = '%(user_id)s, %(provider)s, %(provider_user_id)s')
+
+        insert_provider_opts = {
+            'provider': self.provider,
+            'provider_user_id': self.provider_user_id
+        }
+
+        with self.conn.cursor() as curs:
+            curs.execute(insert_user_sql, insert_user_opts)
+            row = curs.fetchone()
+            user_id = row[0]
+
+            insert_provider_opts['user_id'] = user_id
+            curs.execute(insert_provider_sql, insert_provider_opts)
+
+            self.conn.commit()
+
+        return user_id
