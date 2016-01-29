@@ -2,8 +2,9 @@
 
 import os
 import datetime
+import random
 import unittest
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from test_helpers import (
         with_connection, with_connection_and_cursor,
@@ -355,6 +356,19 @@ class TestUserStartUnit(unittest.TestCase):
         res = user.start_unit(seconds=119)
         self.assertFalse(res[0])
         self.assertIn('at least 2 minutes', res[1])
+
+class TestUserAuthentication(unittest.TestCase):
+    @with_connection
+    def test_creates_user_first_then_logs_in(self, conn):
+        p = 'twitter'
+        puid = str(uuid4())
+        record = nightshades.api.UserAuthentication(conn, p, puid, 'test')
+        uid = record.user_id
+
+        record = nightshades.api.UserAuthentication(conn, p, puid, 'test')
+        self.assertEqual(uid, record.user_id)
+
+
 
 from http_tests import *
 

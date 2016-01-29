@@ -194,53 +194,74 @@ class User:
 
 
 class UserAuthentication:
-    def __init__(self, conn, provider, provider_user_id, opts={}):
+    def __init__(self, conn, provider, provider_user_id, name):
         self.conn = conn
         self.provider = provider
         self.provider_user_id = provider_user_id
-        self.opts = opts
+        self.name = name
 
         self.user_id = self.login_or_register()
 
     def login_or_register(self):
-        user_id = self.try_login()
+        user_id = self.login_with_provider()
         if user_id:
             return user_id
 
-        user_id = self.register()
-        if user_id:
-            return user_id
+        status, res = self.create_user()
+        if not status:
+            return None
 
-        return (False, 'Could not login or create user')
+        self.user_id = res
+        res = self.create_provider_record()
+        if not res[0]:
+            return None
 
-    def try_login(self):
-        pass
+        self.conn.commit()
+        return self.user_id
 
-    def register(self):
-        insert_user_sql = form_insert(
+    def login_with_provider(self):
+        sql = form_select(
+            select = ('user_id', 'nightshades.user_login_providers'),
+            where  = ('provider=%(p)s', 'provider_user_id=%(pid)s'))
+
+        opts = { 'p': self.provider, 'pid': self.provider_user_id }
+        with self.conn.cursor() as curs:
+            curs.execute(sql, opts)
+            res = curs.fetchone()
+
+        if not res:
+            return False
+
+        return res[0]
+
+    def create_user(self):
+        sql = form_insert(
             insert    = 'nightshades.users (name)',
             values    = '%(name)s',
             returning = 'id')
 
-        insert_user_opts = { 'name': self.opts.name }
+        with self.conn.cursor() as curs:
+            curs.execute(sql, dict(name=self.name))
+            row = curs.fetchone()
+            if len(row) != 1 or curs.rowcount != 1:
+                return (False, 'Did not create user',)
 
-        insert_provider_sql = form_insert(
+        return (True, row[0],)
+
+    def create_provider_record(self):
+        sql = form_insert(
             insert = 'nightshades.user_login_providers (user_id, provider, provider_user_id)',
-            values = '%(user_id)s, %(provider)s, %(provider_user_id)s')
+            values = '%(user_id)s, %(p)s, %(p_user_id)s')
 
-        insert_provider_opts = {
-            'provider': self.provider,
-            'provider_user_id': self.provider_user_id
+        opts = {
+            'user_id': self.user_id,
+            'p': self.provider,
+            'p_user_id': self.provider_user_id
         }
 
         with self.conn.cursor() as curs:
-            curs.execute(insert_user_sql, insert_user_opts)
-            row = curs.fetchone()
-            user_id = row[0]
+            curs.execute(sql, opts)
+            if curs.rowcount != 1:
+                return (False, 'Did not create provider record',)
 
-            insert_provider_opts['user_id'] = user_id
-            curs.execute(insert_provider_sql, insert_provider_opts)
-
-            self.conn.commit()
-
-        return user_id
+            return (True,)
