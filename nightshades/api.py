@@ -1,193 +1,187 @@
-from .query_helpers import form_select, form_insert, form_delete, form_update
+import logging
+import datetime
+
+import peewee
+
+from .models import db, User, Unit, Tag, LoginProvider, SQL
 
 # This is how long one has after the expiry_time to mark a unit as complete.
 expiry_interval = "INTERVAL '5 minutes'"
 
 
-class Unit:
-    def __init__(self, conn, user_id, unit_id):
-        self.conn = conn
-        self.user_id  = user_id
-        self.unit_id  = unit_id
-        self.sql_opts = {
-            'id': self.unit_id,
-            'user_id': self.user_id
-        }
+class UsageError(Exception):
+    def __init__(self, message = ''):
+        Exception.__init__(self)
+        self.message = message
 
-    # Returns the time delta between the expiry time and now. Can be used to
-    # check the time left of a unit, or how long ago a unit was complete.
-    def time_left(self):
-        sql = form_select(
-            select = ('expiry_time - NOW()', 'nightshades.units'),
-            where  = ('user_id=%(user_id)s', 'id=%(id)s'),)
-
-        with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
-            res = curs.fetchone()
-
-        if not res:
-            return False
-
-        return res[0]
-
-    def mark_complete(self):
-        sql = form_update(
-            update = ('nightshades.units', 'completed=TRUE'),
-            where  = ('user_id=%(user_id)s',
-                      'id=%(id)s',
-                      'completed=FALSE',
-                      'NOW() >= expiry_time',
-                      'NOW() <= expiry_time + {}'.format(expiry_interval),))
-
-        with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
-            res = curs.rowcount
-            if res == 1:
-                self.conn.commit()
-                return (True,)
-
-            # Something fishy has happened.
-            self.conn.rollback()
-            return (False, 'Tried to mark {} units complete.'.format(res))
-
-    # Returns a tuple containing,
-    # (new tags in database, invalid tags not inserted)
-    def update_tags(self, tag_csv):
-        if tag_csv.count(',') >= 5:
-            return (False, 'A unit can only have 5 tags')
-
-        # Get the old ones out of the way
-        remove_sql = form_delete(
-            delete = 'nightshades.unit_tags',
-            where  = ('unit_id=%(id)s',))
-
-        # ....aaaaand the messy bit to bring in the new ones.
-        invalids    = []
-        insert_opts = []
-        mogrify_me  = []
-        for _tag in set(tag_csv.split(',')):  # Unique only
-            # Skip any blank tags
-            tag = _tag.strip()
-            if not tag:
-                continue
-
-            # Validate the tag, spit back a validation tuple
-            if len(tag) > 40:
-                invalids.append((tag, 'Over 40 characters',))
-                continue
-
-            # We need to insert multiple values,
-            # INSERT ... VALUES (id, 'a'), (id, 'b');
-            #                   (%s, %s),  (%s, %s);
-            #
-            # psycopg2 is expecting positional arguments so we need to give
-            # it a list of `uid,tag,uid,tag` to mogrify into
-            # the list of `(%s, %s)`s.
-            mogrify_me.append("(%s,%s)")
-
-            # Flattened list of (uid,tag)
-            insert_opts.append(self.unit_id)
-            insert_opts.append(tag)
-
-        # This is suckage, I am sorry.
-        symbols = ['INSERT INTO',
-                   'nightshades.unit_tags (unit_id, string)',
-                   'VALUES',
-                   ','.join(mogrify_me),
-                   'RETURNING string']
-        insert_sql = ' '.join(symbols) + ';'
-
-        with self.conn.cursor() as curs:
-            curs.execute(remove_sql, self.sql_opts)
-            curs.execute(insert_sql, insert_opts)
-            res = curs.fetchall()
-
-        self.conn.commit()
-        return (res, invalids,)
+    def __str__(self):
+        return repr(self.message)
 
 
-class User:
-    def __init__(self, conn, user_id):
-        self.conn = conn
-        self.user_id = user_id
-        self.sql_opts = {
-            'user_id': self.user_id
-        }
+class ValidationError(UsageError): pass
+class HasOngoingUnitAlready(UsageError): pass
+class NoOngoingUnit(UsageError): pass
+class InvalidLoginProvider(UsageError): pass
 
-    def get_units(self, date_a, date_b):
-        # Filter date criteria only with start_time and not expiry_time, since
-        # a unit started at 23:59 should count as this day, despite expiring
-        # on the next day.
-        sql = form_select(
-            select = ('id, completed, start_time, expiry_time',
-                      'nightshades.units'),
-            where  = ('user_id=%(user_id)s',
-                      'start_time BETWEEN SYMMETRIC %(a)s AND %(b)s',),
-            order  = 'start_time DESC',)
 
-        opts = self.sql_opts.copy()
-        opts['a'], opts['b'] = date_a, date_b
-        with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
-            return curs.fetchall()
+# Let's define some things.
+#
+# Unit states:
+#   * completed: Unit.completed == true
+#   * ongoing: NOW() < Unit.expiry_time
+#   * expired: NOW() > Unit.expiry_time + expiry_threshold
 
-    # Returns True if a unit is currently in progress. There is a particular
-    # threshold for when a unit is considered expired. The unit must be marked
-    # complete within this threshold.
-    def is_unit_ongoing(self):
-        sql = form_select(
-            select = ('COUNT(id)', 'nightshades.units'),
-            where  = ('user_id=%(user_id)s',
-                      'completed=FALSE',
-                      'expiry_time + {} > NOW()'.format(expiry_interval)),)
+valid_login_providers = (
+    'twitter',
+    'facebook',
+)
 
-        with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
-            res = curs.fetchone()
-            return res[0] > 0
 
-    def cancel_ongoing_unit(self):
-        sql = form_delete(
-            delete = 'nightshades.units',
-            where  = ('user_id=%(user_id)s',
-                      'completed=FALSE',
-                      'expiry_time > NOW()',
-                      'expiry_time <= NOW() + {}'.format(expiry_interval),))
+def start_unit(user_id, seconds = 1500, description = None):
+    if seconds < 1200:
+        raise ValidationError('Unit must be at least 2 minutes')
 
-        with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
-            res = curs.rowcount
-            if res == 1:
-                self.conn.commit()
-                return (True, None, None,)
+    if has_ongoing_unit(user_id):
+        raise HasOngoingUnitAlready
 
-            # Something fishy has happened. There should only ever be one
-            # ongoing unit. For caution, we'll rollback this statement.
-            self.conn.rollback()
-            return (False,
-                    'Expected DELETE statement to affect exactly 1 row',
-                    res)
+    return Unit.insert(
+        user        = user_id,
+        expiry_time = SQL("NOW() + INTERVAL '%s seconds'", seconds),
+        description = description
+    ).dicts().execute()
 
-    # Returns back a uuid (which basically acts as a nonce) and a time delta.
-    # Returns False if a unit is already ongoing.
-    def start_unit(self, seconds=1500):
-        if seconds < 120:
-            return (False, 'Unit must be at least 2 minutes')
 
-        if self.is_unit_ongoing():
-            return (False, 'This user already has an ongoing unit.',)
+def mark_complete(unit_id):
+    res = Unit.update(completed = True).where(
+        Unit.id == unit_id,
+        Unit.completed == False,
+        Unit.expiry_time < SQL('NOW()'),
+        SQL('NOW() <= expiry_time + {}'.format(expiry_interval))
+    ).execute()
 
-        sql = form_insert(
-            insert    = 'nightshades.units (user_id, start_time, expiry_time)',
-            values    = "%(user_id)s, NOW(), NOW() + INTERVAL '%(seconds)s seconds'",
-            returning = 'id, expiry_time - NOW()',)
+    return res == 1
 
-        opts = self.sql_opts.copy()
-        opts['seconds'] = seconds
 
-        with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
-            row = curs.fetchone()
-            self.conn.commit()
+def validate_tag_csv(unit_id, tag_csv):
+    if tag_csv.count(',') >= 5:
+        raise ValidationError('Unit can only have 5 tags')
 
-            return row
+    invalids = []
+    valids   = []
+    for _tag in set(tag_csv.split(',')):  # Unique tags only
+        tag = _tag.strip()
+        if not tag:
+            continue
+
+        if len(tag) > 40:
+            invalids.append((tag, 'Over 40 characters'))
+            continue
+
+        valids.append({ 'unit': unit_id, 'string': tag })
+
+    return (valids, invalids)
+
+
+def set_tags(unit_id, tag_csv):
+    valids, invalids = validate_tag_csv(unit_id, tag_csv)
+
+    # If a blank string is received then all tags should be deleted even if
+    # not replaced by other tags. If a non-blank string is received but there
+    # are no valid tags, raise a ValidationError.
+    if len(tag_csv) > 0 and len(valids) == 0:
+        raise ValidationError('No valid tags')
+
+    with db.atomic() as trans:
+        Tag.delete().where(
+            Tag.unit_id == unit_id
+        ).execute()
+
+        if len(valids) > 0:
+            tags = Tag.insert_many(valids).returning(Tag.string).tuples().execute()
+            trans.commit()
+            return list(map(lambda t: t[0], tags))
+
+    return []
+
+
+def get_unit(user_id, unit_id):
+    return Unit.select().where(
+        Unit.id == unit_id,
+        Unit.user == user_id
+    ).dicts().get()
+
+
+def get_units(user_id, date_a, date_b):
+    return Unit.select().where(
+        Unit.user == user_id,
+        SQL('start_time BETWEEN SYMMETRIC %s AND %s', date_a, date_b),
+    ).order_by(Unit.start_time.desc()).dicts()
+
+
+def query_ongoing_unit(user_id):
+    unit = Unit.select().where(
+        Unit.user == user_id,
+        Unit.completed == False,
+        Unit.expiry_time >= datetime.datetime.now()
+    ).order_by(Unit.start_time.desc())
+
+    return unit
+
+
+def get_ongoing_unit(user_id):
+    try:
+        return query_ongoing_unit(user_id).dicts().get()
+    except peewee.DoesNotExist as e:
+        logging.error(e)
+        raise NoOngoingUnit
+
+
+def has_ongoing_unit(user_id):
+    return query_ongoing_unit(user_id).count()
+
+
+# You can't cancel an ongoing unit that has exceeded its expiry_time, even if
+# it is still within the grace period of the expiry threshold.
+def cancel_ongoing_unit(user_id):
+    unit = query_ongoing_unit(user_id)
+    return unit.get().delete_instance()
+
+
+def register_user(name, provider, provider_user_id):
+    if provider not in valid_login_providers:
+        raise InvalidLoginProvider
+
+    # If we can't create the LoginProvider record as well, then we
+    # shouldn't commit the User record.
+    try:
+        with db.atomic() as trans:
+            user = User.insert(
+                name = name
+            ).tuples().execute()
+
+            LoginProvider.create(
+                user             = user,
+                provider         = provider,
+                provider_user_id = provider_user_id
+            )
+
+        return user
+    except peewee.IntegrityError as e:
+        trans.rollback()
+        logging.error(e)
+        raise ValidationError('Provider ID already used')
+
+
+def login_via_provider(provider, provider_user_id):
+    return User.select().join(LoginProvider).where(
+        LoginProvider.provider == provider,
+        LoginProvider.provider_user_id == provider_user_id
+    ).dicts().get()
+
+
+def add_new_provider(user_id, provider, provider_user_id):
+    return LoginProvider.create(
+        user          = user_id,
+        provider         = provider,
+        provider_user_id = provider_user_id
+    )

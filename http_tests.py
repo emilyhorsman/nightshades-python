@@ -1,243 +1,308 @@
 import os
-import binascii
 import unittest
+import datetime
+from unittest.mock import patch
 from uuid import uuid4
 
-from flask import url_for
+import iso8601
+import jwt
+import flask
+from werkzeug.http import parse_cookie
+from flask import url_for, g
 from flask.json import dumps
 from flask.ext.testing import TestCase
+from peewee import SQL
 
 import nightshades.http
-import nightshades.query_helpers
+from nightshades.models import User, LoginProvider, Unit, Tag
 
-from test_helpers import with_connection_and_cursor, create_user, create_unit
+
+def mock_authenticate_start(provider, redirect_url, params, token_secret, token_cookie):
+    return {
+        'status': 302,
+        'redirect': 'https://api.{}.com'.format(provider),
+        'set_token_cookie': 'foobar'
+    }
+
+
+def mock_authenticate_finish(provider_user_id):
+    def http_get_provider(provider, redirect_url, params, token_secret, token_cookie):
+        return {
+            'status': 200,
+            'provider_user_id': provider_user_id,
+            'provider_user_name': 'Alice'
+        }
+
+    return http_get_provider
+
 
 class TestAPIv1(TestCase):
     def create_app(self):
         app = nightshades.http.app
-        app.config['SECRET_KEY'] = binascii.hexlify(os.urandom(24))
+        app.config['SECRET_KEY'] = 'sekret'
         app.config['TESTING'] = True
+
         return app
 
-    @with_connection_and_cursor
-    def setUp(self, conn, curs):
-        self.user_id = create_user(curs)
-        conn.commit()
 
-        res = self.client.post(url_for('api.v1.authentication'),
-                data = dumps({ 'user_id': self.user_id }),
-                content_type = 'application/json')
-        self.token = res.json['access_token']
-        self.auth_header = ('Authorization', 'JWT {}'.format(self.token),)
+class Test404ErrorHandler(TestAPIv1):
+    def test_error_handler(self):
+        res = self.client.get('/foobar')
+        self.assertStatus(res, 404)
+        self.assertEqual(res.json['errors'][0]['title'], 'Not Found')
 
-    def test_missing_authorization_header(self):
+
+class TestAuthentication(TestAPIv1):
+    @patch('socialauth.http_get_provider', mock_authenticate_start)
+    def test_authenticate_start(self):
+        res = self.client.get(url_for('api.v1.authenticate', provider = 'twitter'))
+        self.assertStatus(res, 302)
+        self.assertEqual(res.headers.get('Location'), 'https://api.twitter.com')
+        self.assertIn('jwt=foobar; HttpOnly;', res.headers.get('Set-Cookie'))
+
+    def test_authenticate_finish_new_user(self):
+        puid = str(uuid4())
+        f = mock_authenticate_finish(puid)
+        with patch('socialauth.http_get_provider', f):
+            url = url_for('api.v1.authenticate', provider = 'twitter')
+            res = self.client.get(url)
+            self.assertStatus(res, 200)
+
+        cookies = parse_cookie(res.headers.get('Set-Cookie'))
+        token = jwt.decode(cookies.get('jwt'), 'sekret')
+
+        user = User.get(User.id == token.get('user_id'))
+        login = LoginProvider.get(
+            LoginProvider.user == user,
+            LoginProvider.provider == 'twitter'
+        )
+        self.assertEqual(user.name, 'Alice')
+        self.assertEqual(login.provider_user_id, puid)
+
+    def test_authenticate_login_existing_user(self):
+        user  = User.create(name = 'Alice')
+        login = LoginProvider.create(
+            user             = user,
+            provider         = 'twitter',
+            provider_user_id = str(uuid4())
+        )
+
+        f = mock_authenticate_finish(login.provider_user_id)
+        with patch('socialauth.http_get_provider', f):
+            url = url_for('api.v1.authenticate', provider = 'twitter')
+            res = self.client.get(url)
+            self.assertStatus(res, 200)
+
+        cookies = parse_cookie(res.headers.get('Set-Cookie'))
+        token   = jwt.decode(cookies.get('jwt'), 'sekret')
+
+        logged_in_user = User.get(User.id == token.get('user_id'))
+        self.assertEqual(logged_in_user.id, user.id)
+
+    def test_authenticate_add_new_login_provider(self):
+        # Set up an existing user and login provider record.
+        user = User.create(name = 'Alice')
+        login = LoginProvider.create(
+            user             = user,
+            provider         = 'twitter',
+            provider_user_id = str(uuid4())
+        )
+
+        # Log the user in.
+        token = jwt.encode({ 'user_id': str(user.id) }, 'sekret')
+        self.client.set_cookie('localhost', 'jwt', token)
+
+        puid = str(uuid4())
+        f = mock_authenticate_finish(puid)
+        with patch('socialauth.http_get_provider', f):
+            url = url_for('api.v1.authenticate', provider = 'facebook')
+            res = self.client.get(url)
+
+            self.assertStatus(res, 200)
+
+        cookies = parse_cookie(res.headers.get('Set-Cookie'))
+        self.assertEqual(cookies.get('jwt'), token.decode('utf-8'),
+            msg='The token should not have changed since the user is already logged in')
+
+        # Ensure the user now has two valid login providers
+        self.assertEqual(LoginProvider.select().where(
+            LoginProvider.user == user.id
+        ).count(), 2)
+
+        self.assertTrue(LoginProvider.get(
+            LoginProvider.user == user.id,
+            LoginProvider.provider == 'facebook',
+            LoginProvider.provider_user_id == puid
+        ))
+
+
+class TestUnauthorized(TestAPIv1):
+    def test_index_units_is_protected(self):
         res = self.client.get(url_for('api.v1.index_units'))
-        self.assertStatus(res, 400)
-        self.assertIn('Missing Authorization', res.json['errors'][0]['title'])
+        self.assertStatus(res, 401)
 
-    def test_invalid_authorization_header(self):
-        res = self.client.get(url_for('api.v1.index_units'),
-                headers = [('Authorization', 'JWT foo.bar.baz blah',)])
-        self.assertStatus(res, 400)
-        self.assertIn('Invalid Authorization', res.json['errors'][0]['title'])
+    def test_create_unit_is_protected(self):
+        res = self.client.post(url_for('api.v1.create_unit'))
+        self.assertStatus(res, 401)
 
-    def test_unsupported_authorization_header(self):
-        res = self.client.get(url_for('api.v1.index_units'),
-                headers = [('Authorization', 'Token foo.bar.baz',)])
-        self.assertStatus(res, 400)
-        self.assertIn('Unsupported Authorization', res.json['errors'][0]['title'])
+    def test_show_unit_is_protected(self):
+        res = self.client.get(url_for('api.v1.show_unit', uuid = uuid4()))
+        self.assertStatus(res, 401)
 
-    def test_invalid_authorization_token(self):
-        res = self.client.get(url_for('api.v1.index_units'),
-                headers = [('Authorization', 'JWT foo.bar.baz',)])
-        self.assertStatus(res, 400)
-        self.assertIn('Invalid Authorization', res.json['errors'][0]['title'])
+    def test_update_unit_is_protected(self):
+        res = self.client.patch(url_for('api.v1.update_unit', uuid = uuid4()))
+        self.assertStatus(res, 401)
 
-    def test_index_not_found(self):
-        res = self.client.get('/')
-        self.assert404(res)
-        self.assertEqual(res.mimetype, 'application/json')
 
-    def test_validate_payload_fails_on_no_data(self):
-        res = self.client.post(url_for('api.v1.create_unit'),
-                data = dumps({}),
-                content_type = 'application/json')
-        self.assertStatus(res, 400)
-        self.assertEqual(res.json['errors'][0]['title'], 'No data')
+class TestEndpoints(TestAPIv1):
+    def setUp(self):
+        self.user = User.create(name = 'Alice')
+        token = jwt.encode({ 'user_id': str(self.user.id) }, 'sekret')
+        self.client.set_cookie('localhost', 'jwt', token)
 
-    def test_validate_payload_fails_with_wrong_type(self):
-        res = self.client.post(url_for('api.v1.create_unit'),
-                data = dumps({ 'data': { 'type': 'user' } }),
-                content_type = 'application/json')
-        self.assertStatus(res, 400)
-        self.assertIn('Wrong type', res.json['errors'][0]['title'])
 
+class TestIndexUnits(TestEndpoints):
+    def test_index_units(self):
+        a = Unit.create(user = self.user)
+        b = Unit.create(
+            user        = self.user,
+            completed   = True,
+            start_time  = SQL("NOW() - INTERVAL '30 minutes'"),
+            expiry_time = SQL("NOW() - INTERVAL '5 minutes'")
+        )
+
+        res = self.client.get(url_for('api.v1.index_units'))
+        self.assertStatus(res, 200)
+
+        ret = res.json['data']
+        self.assertEqual(ret[0]['id'], str(a.id))
+        self.assertEqual(ret[1]['id'], str(b.id))
+
+
+class TestCreateUnit(TestEndpoints):
     def test_create_unit(self):
         payload = {
             'data': {
                 'type': 'unit',
-                'attributes': { 'delta': 1200 },
+                'attributes': { 'delta': 1200 }
             }
         }
-        res = self.client.post(url_for('api.v1.create_unit'),
-                data         = dumps(payload),
-                content_type = 'application/json',
-                headers      = [self.auth_header])
+        res = self.client.post(
+            url_for('api.v1.create_unit'),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
         ret = res.json['data']
 
         self.assertStatus(res, 201)
-        self.assertIn('id', ret)
         self.assertEqual(ret['type'], 'unit')
-        self.assertEqual(ret['attributes']['delta'], 1200)
+        self.assertIn('id', ret)
 
     def test_error_on_second_ongoing_unit(self):
+        Unit.create(user = self.user)
         payload = { 'data': { 'type': 'unit' } }
-        res = self.client.post(url_for('api.v1.create_unit'),
-                data         = dumps(payload),
-                content_type = 'application/json',
-                headers      = [self.auth_header])
-        self.assertStatus(res, 201)
-        self.assertEqual(res.json['data']['attributes']['delta'], 1500)
-
-        res = self.client.post(url_for('api.v1.create_unit'),
-                data         = dumps(payload),
-                content_type = 'application/json',
-                headers      = [self.auth_header])
+        res = self.client.post(
+            url_for('api.v1.create_unit'),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
         self.assertStatus(res, 400)
-        self.assertIn('already has an ongoing unit', res.json['errors'][0]['title'])
 
-    def test_show_unit_fails_without_user(self):
-        pass
 
-    def test_show_unit_not_found(self):
-        url = url_for('api.v1.show_unit', uuid=uuid4())
-        res = self.client.get(url, headers=[self.auth_header])
-        self.assertStatus(res, 404)
-
-    @with_connection_and_cursor
-    def test_show_unit(self, conn, curs):
-        sql = nightshades.query_helpers.form_insert(
-                insert    = 'nightshades.units (user_id, start_time, expiry_time)',
-                values    = "%s, NOW(), NOW() + '1 minute'",
-                returning = 'id')
-        curs.execute(sql, (self.user_id,))
-        conn.commit()
-        uuid = curs.fetchone()[0]
-
-        url = url_for('api.v1.show_unit', uuid=uuid)
-        res = self.client.get(url, headers=[self.auth_header])
-        ret = res.json
+class TestShowUnit(TestEndpoints):
+    def test_show_unit(self):
+        unit = Unit.create(user = self.user)
+        res  = self.client.get(url_for('api.v1.show_unit', uuid = unit.id))
         self.assertStatus(res, 200)
-        self.assertTrue(ret['data']['attributes']['delta'] >= 59.9)
-        self.assertTrue(ret['data']['attributes']['delta'] <= 60)
 
-        sql = nightshades.query_helpers.form_update(
-                update = ('nightshades.units', "expiry_time=NOW() - INTERVAL '1 second'"),
-                where  = ('user_id=%s', 'id=%s'))
-        curs.execute(sql, (self.user_id, uuid,))
-        conn.commit()
+        ret   = res.json['data']
+        attrs = ret['attributes']
 
-        res = self.client.get(url, headers=[self.auth_header])
-        ret = res.json
-        self.assertStatus(res, 200)
-        self.assertTrue(ret['data']['attributes']['delta'] < -0.9)
-        self.assertTrue(ret['data']['attributes']['delta'] >= -1.1)
+        self.assertIn('completed', attrs)
 
-    @with_connection_and_cursor
-    def test_update_unit(self, conn, curs):
-        sql = nightshades.query_helpers.form_insert(
-                insert = 'nightshades.units (user_id, start_time, expiry_time)',
-                values = "%s, NOW() - INTERVAL '26 minutes', NOW() - INTERVAL '1 minute'",
-                returning = 'id')
-        curs.execute(sql, (self.user_id,))
-        conn.commit()
-        uuid = curs.fetchone()[0]
+        # Ensure dates are provided in ISO 8601 format
+        # YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM
+        try:
+            iso8601.parse_date(attrs['start_time'])
+            iso8601.parse_date(attrs['expiry_time'])
+        except iso8601.ParseError as e:
+            self.fail(e)
 
-        url = url_for('api.v1.update_unit', uuid=uuid)
+
+class TestUpdateUnit(TestEndpoints):
+    def test_update_unit(self):
+        unit = Unit.create(
+            user        = self.user,
+            completed   = False,
+            start_time  = SQL("NOW() - INTERVAL '5 minutes'"),
+            expiry_time = SQL("NOW() - INTERVAL '1 second'")
+        )
+
         payload = {}
         payload['data'] = {
             'type': 'unit',
-            'id': uuid,
+            'id': unit.id,
             'attributes': { 'completed': True }
         }
-        res = self.client.patch(url,
-                data         = dumps(payload),
-                content_type = 'application/json',
-                headers      = [self.auth_header])
-
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = unit.id),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
         self.assertStatus(res, 200)
 
-    @with_connection_and_cursor
-    def test_update_unit_fails_since_incomplete(self, conn, curs):
-        sql = nightshades.query_helpers.form_insert(
-                insert    = 'nightshades.units (user_id, expiry_time)',
-                values    = "%s, NOW() + INTERVAL '1 minute'",
-                returning = 'id')
-        curs.execute(sql, (self.user_id,))
-        conn.commit()
-        uuid = curs.fetchone()[0]
+    def test_already_marked_complete(self):
+        unit = Unit.create(user = self.user, completed = True)
 
-        url = url_for('api.v1.update_unit', uuid=uuid)
         payload = {}
         payload['data'] = {
             'type': 'unit',
-            'id': uuid,
+            'id': unit.id,
             'attributes': { 'completed': True }
         }
-        res = self.client.patch(url,
-                data         = dumps(payload),
-                content_type = 'application/json',
-                headers      = [self.auth_header])
-
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = unit.id),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
         self.assertStatus(res, 400)
-        self.assertIn('not completed', res.json['errors'][0]['title'])
 
-    def test_update_unit_fails_with_no_operation(self):
-        id  = uuid4()
-        url = url_for('api.v1.update_unit', uuid=id)
+    def test_no_operations(self):
+        unit = Unit.create(user = self.user)
         payload = {}
-        payload['data'] = {
-            'type': 'unit',
-            'id': id
-        }
-
-        res = self.client.patch(url,
-                data         = dumps(payload),
-                content_type = 'application/json',
-                headers      = [self.auth_header])
-
+        payload['data'] = { 'type': 'unit', 'id': unit.id }
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = unit.id),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
         self.assertStatus(res, 400)
-        self.assertIn('No operations', res.json['errors'][0]['title'])
 
-    def test_invalid_uuid_fails(self):
-        url = url_for('api.v1.show_unit', uuid='16fd2706-8baf-433b-82eb-8c7fada8-7da')
-        res = self.client.get(url)
+
+class TestValidateUUID(TestEndpoints):
+    def test_invalid_uuid(self):
+        res = self.client.patch(url_for('api.v1.update_unit', uuid = 'abcd'))
         self.assertStatus(res, 404)
 
-    @with_connection_and_cursor
-    def test_index_units(self, conn, curs):
-        with conn.cursor() as curs:
-            unit_id_a = create_unit(curs,
-                user_id     = self.user_id,
-                completed   = False,
-                start_time  = "NOW()",
-                expiry_time = "NOW() + INTERVAL '25 minutes'")
 
+class TestValidatePayload(TestEndpoints):
+    def test_no_data(self):
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = str(uuid4())),
+            data = '{}',
+            content_type = 'application/json'
+        )
+        self.assertStatus(res, 400)
+        self.assertEqual(res.json['errors'][0]['title'], 'No data')
 
-            unit_id_b = create_unit(curs,
-                user_id     = self.user_id,
-                completed   = True,
-                start_time  = "NOW() - INTERVAL '30 minutes'",
-                expiry_time = "NOW() - INTERVAL '25 minutes'")
-
-            conn.commit()
-
-        res = self.client.get(url_for('api.v1.index_units'), headers=[self.auth_header])
-        ret = res.json['data']
-        self.assertStatus(res, 200)
-        self.assertEqual(ret[0]['id'], unit_id_a)
-        self.assertEqual(ret[1]['id'], unit_id_b)
-
+    def test_wrong_type(self):
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = str(uuid4())),
+            data = '{"data":{"type":"foobar"}}',
+            content_type = 'application/json'
+        )
+        self.assertStatus(res, 400)
+        self.assertIn('type', res.json['errors'][0]['title'])
 
 
 if __name__ == '__main__':

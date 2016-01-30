@@ -3,7 +3,22 @@ from functools import wraps
 
 from flask import abort, request
 
+from .authentication import current_user_id
 from . import errors
+
+
+def logged_in(func):
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        try:
+            if not current_user_id():
+                raise
+        except:
+            raise errors.Unauthorized
+
+        return func(*args, **kwargs)
+
+    return wrapped
 
 
 def validate_uuid(func):

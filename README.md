@@ -55,24 +55,20 @@ $ pip install -r requirements.txt
 ### Create database and run migrations
 
 ```
-postgres=# CREATE DATABASE nightshades
-
-$ find sql/*_migration.sql -exec psql -d nightshades -f {} \;
+$ createdb nightshades
+$ python migration.py
 ```
 
-These instructions assume that you’ve created a database called `nightshades`
-and have correctly configured your roles. Unfortunately, the migration SQL
-currently has a `CREATE EXTENSION` call. This means your current role will need
-to have `superuser` privileges.
+Unfortunately, the migration SQL currently has a `CREATE EXTENSION` call. This
+means your current role will need to have `superuser` privileges.
 
 ### Testing
 
 Note that `.test.env` has a database string set for testing.
 
 ```
-postgres=# CREATE DATABASE nightshades_test;
-
-$ find sql/*_migration.sql -exec psql -d nightshades_test -f {} \;
+$ createdb nightshades_test
+$ NIGHTSHADES_POSTGRESQL_DB_URI='postgresqlext:///nightshades_test' python migration.py
 $ python tests.py
 ```
 
@@ -89,9 +85,15 @@ $ NIGHTSHADES_DOTENV=~/config/.nightshades.env python tests.py
 Your `.env` should look something like this:
 
 ```
-NIGHTSHADES_POSTGRESQL_DB_STR='dbname=somedatabasename'
+NIGHTSHADES_POSTGRESQL_DB_URI='postgresqlext:///nightshades_test'
 NIGHTSHADES_APP_SECRET=somerandomlygeneratedsecretkey
 ENVIRONMENT=development
+
+TWITTER_CONSUMER_KEY=key
+TWITTER_CONSUMER_SECRET=secret
+
+FACEBOOK_APP_ID=key
+FACEBOOK_APP_SECRET=secret
 ```
 
 ## pypi

@@ -1,46 +1,96 @@
 import jwt
-from flask import request, current_app, jsonify, g
+import socialauth
+from flask import (
+    request, redirect, make_response,
+    current_app, jsonify, g, abort
+)
 
+import nightshades
 from . import api
 from . import errors
 
 
-def authenticate(user_id):
-    payload = dict(user_id=user_id)
-    token   = jwt.encode(payload, current_app.secret_key, algorithm = 'HS256')
-    data    = { 'access_token': token.decode('utf-8') }
-    return jsonify(data), 200
-
-
-def token_from_authorization_header(header):
-    if not header:
-        raise errors.InvalidAPIUsage('Missing Authorization header')
-
-    symbols = header.split()
-    if len(symbols) != 2:
-        raise errors.InvalidAPIUsage('Invalid Authorization header')
-
-    if symbols[0] != 'JWT':
-        raise errors.InvalidAPIUsage('Unsupported Authorization type')
-
-    return symbols[1]
-
-
-def identity():
+def current_user_id():
     user_id = g.get('user_id', None)
     if user_id is not None:
         return user_id
 
-    token = token_from_authorization_header(request.headers.get('Authorization'))
+    # Using cookies to store the token for now but this could be an
+    # Authorization header in the future (in addition to cookies).
+    token = request.cookies.get('jwt', False)
+
+    if not token:
+        return False
 
     try:
         payload = jwt.decode(token, current_app.secret_key, algorithm = 'HS256')
+        if 'user_id' not in payload:
+            return False
+
         g.user_id = payload['user_id']
         return g.user_id
     except:
         raise errors.InvalidAPIUsage('Invalid Authorization token')
 
 
-@api.route('/auth', methods=['POST'])
-def authentication():
-    return authenticate(request.get_json()['user_id'])
+def login_or_register(provider, res):
+    try:
+        user_id = nightshades.api.login_via_provider(
+            provider,
+            res.get('provider_user_id')
+        ).get('id')
+    except:
+        user_id = nightshades.api.register_user(
+            res.get('provider_user_name'),
+            provider,
+            res.get('provider_user_id')
+        )
+
+    return jwt.encode(
+        { 'user_id': str(user_id) },
+        current_app.secret_key,
+        algorithm = 'HS256'
+    )
+
+
+def complete_flow(provider, res):
+    resp = make_response(jsonify({ 'status': 'success' }))
+
+    cookie = request.cookies.get('jwt', False)
+    if cookie:
+        user_id = current_user_id()
+        if user_id:
+            puid = res.get('provider_user_id')
+            nightshades.api.add_new_provider(user_id, provider, puid)
+
+            # Set to the same value
+            resp.set_cookie('jwt', cookie, httponly = True)
+            return resp
+
+    token = login_or_register(provider, res)
+    resp.set_cookie('jwt', token, httponly = True)
+    return resp
+
+
+@api.route('/auth/<provider>')
+def authenticate(provider):
+    res = socialauth.http_get_provider(
+        provider,
+        request.base_url,
+        request.args,
+        current_app.secret_key,
+        request.cookies.get('jwt')
+    )
+
+    if res.get('status') == 302:
+        resp  = make_response(redirect(res.get('redirect')))
+        token = res.get('set_token_cookie', False)
+        if token:
+            resp.set_cookie('jwt', token, httponly = True)
+
+        return resp
+
+    if res.get('status') == 200:
+        return complete_flow(provider, res)
+
+    abort(400)

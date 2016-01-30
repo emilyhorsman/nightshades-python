@@ -11,5 +11,9 @@ __title__   = 'nightshades'
 __version__ = '0.1.0'
 __author__  = 'Emily Horsman'
 
+
 from .session import load_dotenv, connection
+load_dotenv()
+
+
 from . import api
