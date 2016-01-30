@@ -14,12 +14,12 @@ cache:
   directories:
     - $HOME/.cache/pip
 env:
-  - NIGHTSHADES_POSTGRESQL_DB_STR='dbname=nightshades_test user=postgres'
+  - NIGHTSHADES_POSTGRESQL_DB_URI='postgresqlext:///nightshades_test'
 install:
   - pip install -r requirements.test.txt
 before_script:
   - psql -c 'CREATE DATABASE nightshades_test;' -U postgres
-  - sh -c "find sql/*_migration.sql -exec psql -d nightshades_test -U postgres -f {} \;"
+  - python migration.py
 script:
   - coverage run tests.py
 after_success:
