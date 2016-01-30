@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/emilyhorsman/nightshades-python.svg?branch=development)](https://travis-ci.org/emilyhorsman/nightshades-python)
 [![Code Climate](https://codeclimate.com/github/emilyhorsman/nightshades-python/badges/gpa.svg)](https://codeclimate.com/github/emilyhorsman/nightshades-python)
 [![Python ≥ 3.3](https://img.shields.io/badge/python-%E2%89%A5%203.3-blue.svg)](https://docs.python.org/3/)
-[![Contributor Covenant](https://img.shields.io/badge/code%20of%20conduct-v1.3.0-4C1161.svg)](CODE_OF_CONDUCT.md)
+[![Contributor Covenant](https://img.shields.io/badge/code%20of%20conduct-v1.4.0-4C1161.svg)](CODE_OF_CONDUCT.md)
 
 A [JSON API](http://jsonapi.org/) for productivity tracking (using Pomodoros).
 Written for Python 3+ with [Flask](http://flask.pocoo.org/) handling HTTP
