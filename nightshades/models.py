@@ -16,7 +16,7 @@ class User(BaseModel):
     id         = UUIDField(primary_key = True,
                            constraints = [SQL('DEFAULT uuid_generate_v4()')])
     name       = TextField()
-    created_at = DateTimeTZField(default = SQL("NOW()"))
+    created_at = DateTimeTZField(constraints = [SQL("DEFAULT NOW()")])
 
     class Meta:
         db_table = 'users'
@@ -26,7 +26,7 @@ class LoginProvider(BaseModel):
     user             = ForeignKeyField(User, on_delete = 'CASCADE')
     provider         = TextField()
     provider_user_id = TextField()
-    created_at       = DateTimeTZField(default = SQL("NOW()"))
+    created_at       = DateTimeTZField(constraints = [SQL("DEFAULT NOW()")])
 
     class Meta:
         db_table = 'login_providers'
@@ -42,8 +42,8 @@ class Unit(BaseModel):
     user        = ForeignKeyField(User, on_delete = 'CASCADE')
     completed   = BooleanField(default = False)
     description = TextField(null = True)
-    start_time  = DateTimeTZField(default = SQL("NOW()"))
-    expiry_time = DateTimeTZField(default = SQL("NOW() + INTERVAL '25 minutes'"))
+    start_time  = DateTimeTZField(constraints = [SQL("DEFAULT NOW()")])
+    expiry_time = DateTimeTZField(constraints = [SQL("DEFAULT NOW() + INTERVAL '25 minutes'")])
 
     class Meta:
         db_table = 'units'

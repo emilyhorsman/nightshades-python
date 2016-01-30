@@ -50,6 +50,17 @@ def start_unit(user_id, seconds = 1500, description = None):
     ).dicts().execute()
 
 
+def mark_complete(unit_id):
+    res = Unit.update(completed = True).where(
+        Unit.id == unit_id,
+        Unit.completed == False,
+        Unit.expiry_time < SQL('NOW()'),
+        SQL('NOW() <= expiry_time + {}'.format(expiry_interval))
+    ).execute()
+
+    return res == 1
+
+
 def validate_tag_csv(unit_id, tag_csv):
     if tag_csv.count(',') >= 5:
         raise ValidationError('Unit can only have 5 tags')
