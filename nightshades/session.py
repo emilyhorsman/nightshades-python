@@ -1,12 +1,10 @@
 import os
-
-import psycopg2
-
+from playhouse.db_url import connect
 
 def connection():
-    k = 'NIGHTSHADES_POSTGRESQL_DB_STR'
-    db_conn_str = os.environ.get(k, default = 'dbname=nightshades')
-    return psycopg2.connect(db_conn_str)
+    k = 'NIGHTSHADES_POSTGRESQL_DB_URI'
+    db_conn_uri = os.environ.get(k, default = 'postgresqlext:///nightshades')
+    return connect(db_conn_uri, register_hstore = False)
 
 
 def load_dotenv():
