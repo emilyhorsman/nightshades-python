@@ -1,27 +1,32 @@
-from . import connection
 from playhouse.postgres_ext import DateTimeTZField
 from peewee import (
     Model, UUIDField, ForeignKeyField,
     TextField, BooleanField, SQL
 )
 
+from . import connection
+
 
 class BaseModel(Model):
     class Meta:
         database = connection()
 
+
 class User(BaseModel):
-    id         = UUIDField(primary_key = True)
+    id         = UUIDField(primary_key = True,
+                           constraints = [SQL('DEFAULT uuid_generate_v4()')])
     name       = TextField()
     created_at = DateTimeTZField(default = SQL("NOW()"))
 
     class Meta:
         db_table = 'users'
 
+
 class LoginProvider(BaseModel):
-    user_id          = ForeignKeyField(User)
+    user             = ForeignKeyField(User, on_delete = 'CASCADE')
     provider         = TextField()
     provider_user_id = TextField()
+    created_at       = DateTimeTZField(default = SQL("NOW()"))
 
     class Meta:
         db_table = 'login_providers'
@@ -30,9 +35,11 @@ class LoginProvider(BaseModel):
             (('provider', 'provider_user_id'), True),
         )
 
+
 class Unit(BaseModel):
-    id          = UUIDField(primary_key = True)
-    user_id     = ForeignKeyField(User)
+    id          = UUIDField(primary_key = True,
+                            constraints = [SQL('DEFAULT uuid_generate_v4()')])
+    user        = ForeignKeyField(User, on_delete = 'CASCADE')
     completed   = BooleanField(default = False)
     description = TextField(null = True)
     start_time  = DateTimeTZField(default = SQL("NOW()"))
@@ -41,13 +48,14 @@ class Unit(BaseModel):
     class Meta:
         db_table = 'units'
 
+
 class Tag(BaseModel):
-    unit_id = ForeignKeyField(Unit)
-    string  = TextField()
+    unit   = ForeignKeyField(Unit, on_delete = 'CASCADE')
+    string = TextField()
 
     class Meta:
         db_table = 'tags'
 
         indexes = (
-            (('unit_id', 'string'), True),
+            (('unit', 'string'), True),
         )

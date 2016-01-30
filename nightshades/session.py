@@ -1,10 +1,11 @@
 import os
 from playhouse.db_url import connect
 
+
 def connection():
     k = 'NIGHTSHADES_POSTGRESQL_DB_URI'
     db_conn_uri = os.environ.get(k, default = 'postgresqlext:///nightshades')
-    return connect(db_conn_uri, register_hstore = False)
+    return connect(db_conn_uri, register_hstore = False, autorollback = True)
 
 
 def load_dotenv():

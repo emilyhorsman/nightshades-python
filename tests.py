@@ -8,8 +8,8 @@ import logging
 from uuid import UUID, uuid4
 
 from test_helpers import (
-        with_connection, with_connection_and_cursor,
-        create_user, create_unit, create_user_with_unit
+    with_connection, with_connection_and_cursor,
+    create_user, create_unit, create_user_with_unit
 )
 
 logging.basicConfig(filename = 'nightshades_tests.log')
