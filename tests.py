@@ -4,12 +4,15 @@ import os
 import datetime
 import random
 import unittest
+import logging
 from uuid import UUID, uuid4
 
 from test_helpers import (
         with_connection, with_connection_and_cursor,
         create_user, create_unit, create_user_with_unit
 )
+
+logging.basicConfig(filename = 'nightshades_tests.log')
 
 # Test #connection
 class TestSession(unittest.TestCase):
@@ -360,13 +363,38 @@ class TestUserStartUnit(unittest.TestCase):
 class TestUserAuthentication(unittest.TestCase):
     @with_connection
     def test_creates_user_first_then_logs_in(self, conn):
-        p = 'twitter'
-        puid = str(uuid4())
+        p      = 'twitter'
+        puid   = str(uuid4())
         record = nightshades.api.UserAuthentication(conn, p, puid, 'test')
-        uid = record.user_id
+        uid    = record.user_id
 
         record = nightshades.api.UserAuthentication(conn, p, puid, 'test')
         self.assertEqual(uid, record.user_id)
+
+    @with_connection
+    def test_fail_blank_provider(self, conn):
+        record = nightshades.api.UserAuthentication(conn, str(uuid4()), ' ', ' ')
+        self.assertIsNone(record.user_id)
+
+    @with_connection
+    def test_fail_duplicate_provider_id(self, conn):
+        p      = 'twitter'
+        puid   = str(uuid4())
+        record = nightshades.api.UserAuthentication(conn, p, puid, 'test')
+        res = record.create_provider_record()
+        self.assertFalse(res[0])
+
+    @with_connection
+    def test_different_provider_same_id_passes(self, conn):
+        # Should be able to use the same provider_user_id if the provider is
+        # different.
+        puid = str(uuid4())
+        record = nightshades.api.UserAuthentication(conn, 'twitter', puid, 'test')
+
+        record.provider = 'facebook'
+        res = record.create_provider_record()
+        self.assertTrue(res[0])
+
 
 
 

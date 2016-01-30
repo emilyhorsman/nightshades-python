@@ -1,3 +1,4 @@
+import logging
 from .query_helpers import form_select, form_insert, form_delete, form_update
 
 # This is how long one has after the expiry_time to mark a unit as complete.
@@ -128,8 +129,12 @@ class User:
         opts = self.sql_opts.copy()
         opts['a'], opts['b'] = date_a, date_b
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
-            return curs.fetchall()
+            try:
+                curs.execute(sql, opts)
+                return curs.fetchall()
+            except Exception as e:
+                logging.error(e)
+                return False
 
     # Returns True if a unit is currently in progress. There is a particular
     # threshold for when a unit is considered expired. The unit must be marked
@@ -142,9 +147,14 @@ class User:
                       'expiry_time + {} > NOW()'.format(expiry_interval)),)
 
         with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
-            res = curs.fetchone()
-            return res[0] > 0
+            try:
+                curs.execute(sql, self.sql_opts)
+                res = curs.fetchone()
+                return res[0] > 0
+            except Exception as e:
+                logging.error(e)
+
+        return False
 
     def cancel_ongoing_unit(self):
         sql = form_delete(
@@ -155,11 +165,16 @@ class User:
                       'expiry_time <= NOW() + {}'.format(expiry_interval),))
 
         with self.conn.cursor() as curs:
-            curs.execute(sql, self.sql_opts)
-            res = curs.rowcount
-            if res == 1:
+            try:
+                curs.execute(sql, self.sql_opts)
+                res = curs.rowcount
+                if res != 1:
+                    raise
+
                 self.conn.commit()
                 return (True, None, None,)
+            except Exception as e:
+                logging.error(e)
 
             # Something fishy has happened. There should only ever be one
             # ongoing unit. For caution, we'll rollback this statement.
@@ -186,21 +201,27 @@ class User:
         opts['seconds'] = seconds
 
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
-            row = curs.fetchone()
-            self.conn.commit()
+            try:
+                curs.execute(sql, opts)
+                row = curs.fetchone()
+                self.conn.commit()
+            except Exception as e:
+                self.conn.rollback()
+                logging.error(e)
+                return False
 
-            return row
+        return row
 
 
 class UserAuthentication:
-    def __init__(self, conn, provider, provider_user_id, name):
+    def __init__(self, conn, provider, provider_user_id, name, login = True):
         self.conn = conn
         self.provider = provider
         self.provider_user_id = provider_user_id
         self.name = name
 
-        self.user_id = self.login_or_register()
+        if login:
+            self.user_id = self.login_or_register()
 
     def login_or_register(self):
         user_id = self.login_with_provider()
@@ -226,13 +247,14 @@ class UserAuthentication:
 
         opts = { 'p': self.provider, 'pid': self.provider_user_id }
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
-            res = curs.fetchone()
+            try:
+                curs.execute(sql, opts)
+                res = curs.fetchone()
+                return res[0]
+            except Exception as e:
+                logging.error(e)
 
-        if not res:
-            return False
-
-        return res[0]
+        return False
 
     def create_user(self):
         sql = form_insert(
@@ -241,12 +263,18 @@ class UserAuthentication:
             returning = 'id')
 
         with self.conn.cursor() as curs:
-            curs.execute(sql, dict(name=self.name))
-            row = curs.fetchone()
-            if len(row) != 1 or curs.rowcount != 1:
-                return (False, 'Did not create user',)
+            try:
+                curs.execute(sql, dict(name=self.name))
+                row = curs.fetchone()
+                if len(row) != 1 or curs.rowcount != 1:
+                    raise
 
-        return (True, row[0],)
+                return (True, row[0],)
+            except Exception as e:
+                self.conn.rollback()
+                logging.error(e)
+
+        return (False, 'Did not create user',)
 
     def create_provider_record(self):
         sql = form_insert(
@@ -260,8 +288,13 @@ class UserAuthentication:
         }
 
         with self.conn.cursor() as curs:
-            curs.execute(sql, opts)
-            if curs.rowcount != 1:
-                return (False, 'Did not create provider record',)
+            try:
+                curs.execute(sql, opts)
+                if curs.rowcount != 1:
+                    raise
 
-            return (True,)
+                return (True,)
+            except Exception as e:
+                self.conn.rollback()
+                logging.error(e)
+                return (False, 'Did not create provider record',)
