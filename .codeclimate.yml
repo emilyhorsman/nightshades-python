@@ -16,6 +16,5 @@ ratings:
         - "nightshades/**/*.py"
 
 exclude_paths:
-    - nightshades/http/seed.py
     - http_tests.py
     - tests.py
