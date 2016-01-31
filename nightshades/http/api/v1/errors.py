@@ -13,7 +13,6 @@ def json_error(status, title):
     return jsonify(ret)
 
 
-
 class InvalidAPIUsage(nightshades.api.UsageError):
     def __init__(self, message, status_code = 400):
         self.message = message
