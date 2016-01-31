@@ -59,10 +59,7 @@ def index_units():
 def create_unit():
     payload = request.get_json()['data']
     seconds = payload.get('attributes', {}).get('delta', 1500)
-    try:
-        result = nightshades.api.start_unit(g.user_id, seconds)
-    except nightshades.api.UsageError as e:
-        raise e
+    result  = nightshades.api.start_unit(g.user_id, seconds)
 
     ret = { 'data': serialize_unit_data(result) }
     return jsonify(ret), 201
@@ -73,10 +70,7 @@ def create_unit():
 @logged_in
 @validate_uuid
 def show_unit(uuid):
-    try:
-        unit = nightshades.api.get_unit(uuid, user_id = g.user_id)
-    except Exception as e:
-        raise e
+    unit = nightshades.api.get_unit(uuid, user_id = g.user_id)
 
     ret  = { 'data': serialize_unit_data(unit) }
     return jsonify(ret), 200

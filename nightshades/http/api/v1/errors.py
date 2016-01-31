@@ -1,4 +1,17 @@
 import nightshades
+from flask import jsonify
+
+
+def json_error(status, title):
+    ret = {
+        'errors': [{
+            'status': status,
+            'title': title
+        }]
+    }
+
+    return jsonify(ret)
+
 
 
 class InvalidAPIUsage(nightshades.api.UsageError):
@@ -7,14 +20,7 @@ class InvalidAPIUsage(nightshades.api.UsageError):
         self.status_code = status_code
 
     def to_dict(self):
-        ret = {
-            'errors': [{
-                'status': getattr(self, 'status_code', 400),
-                'title': self.message
-            }]
-        }
-
-        return ret
+        return json_error(self.status_code, self.message)
 
 
 class Unauthorized(InvalidAPIUsage):
