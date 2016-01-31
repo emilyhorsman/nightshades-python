@@ -10,4 +10,8 @@ if __name__ == '__main__':
     if cors:
         app.config['CORS'] = cors
 
+    domain = os.environ.get('NIGHTSHADES_COOKIE_DOMAIN', False)
+    if domain:
+        app.config['COOKIE_DOMAIN'] = domain
+
     app.run(host = '0.0.0.0')

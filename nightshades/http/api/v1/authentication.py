@@ -10,6 +10,16 @@ from . import api
 from . import errors
 
 
+def set_jwt_cookie(resp, value, **kwargs):
+    resp.set_cookie(
+        'jwt',
+        value,
+        httponly = True,
+        domain = current_app.config.get('COOKIE_DOMAIN'),
+        **kwargs
+    )
+
+
 def current_user_id():
     user_id = g.get('user_id', None)
     if user_id is not None:
@@ -64,11 +74,11 @@ def complete_flow(provider, res):
             nightshades.api.add_new_provider(user_id, provider, puid)
 
             # Set to the same value
-            resp.set_cookie('jwt', cookie, httponly = True)
+            set_jwt_cookie(resp, cookie)
             return resp
 
     token = login_or_register(provider, res)
-    resp.set_cookie('jwt', token, httponly = True)
+    set_jwt_cookie(resp, token)
     return resp
 
 
@@ -86,7 +96,7 @@ def authenticate(provider):
         resp  = make_response(redirect(res.get('redirect')))
         token = res.get('set_token_cookie', False)
         if token:
-            resp.set_cookie('jwt', token, httponly = True)
+            set_jwt_cookie(resp, token)
 
         return resp
 
@@ -99,5 +109,5 @@ def authenticate(provider):
 @api.route('/logout')
 def logout():
     resp = make_response(jsonify({ 'status': 'success' }))
-    resp.set_cookie('jwt', '', expires = 0)
+    set_jwt_cookie(resp, '', expires = 0)
     return resp
