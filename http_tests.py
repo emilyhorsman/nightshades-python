@@ -137,6 +137,19 @@ class TestAuthentication(TestAPIv1):
         ))
 
 
+    def test_logout(self):
+        payload = { 'user_id': 'foobar' }
+        token   = jwt.encode(payload, 'sekret')
+        self.client.set_cookie('localhost', 'jwt', token)
+
+        res = self.client.get(url_for('api.v1.logout'))
+        self.assertStatus(res, 200)
+
+        cookies = parse_cookie(res.headers.get('Set-Cookie'))
+        self.assertFalse(cookies.get('jwt'))
+
+
+
 class TestUnauthorized(TestAPIv1):
     def test_index_units_is_protected(self):
         res = self.client.get(url_for('api.v1.index_units'))

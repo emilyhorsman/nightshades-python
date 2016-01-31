@@ -94,3 +94,10 @@ def authenticate(provider):
         return complete_flow(provider, res)
 
     abort(400)
+
+
+@api.route('/logout')
+def logout():
+    resp = make_response(jsonify({ 'status': 'success' }))
+    resp.set_cookie('jwt', '', expires = 0)
+    return resp
