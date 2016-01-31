@@ -73,7 +73,11 @@ def create_unit():
 @logged_in
 @validate_uuid
 def show_unit(uuid):
-    unit = nightshades.api.get_unit(g.user_id, uuid)
+    try:
+        unit = nightshades.api.get_unit(uuid, user_id = g.user_id)
+    except Exception as e:
+        raise e
+
     ret  = { 'data': serialize_unit_data(unit) }
     return jsonify(ret), 200
 
@@ -84,22 +88,18 @@ def show_unit(uuid):
 @validate_payload('unit')
 def update_unit(uuid):
     payload = request.get_json()['data']
-    if payload.get('attributes', {}).get('completed', False):
-        try:
-            res = nightshades.api.mark_complete(uuid)
-        except nightshades.api.UsageError as e:
-            raise e
+    if not payload.get('attributes', {}).get('completed', False):
+        raise errors.InvalidAPIUsage('No operations to perform')
 
-        if not res:
-            raise errors.InvalidAPIUsage('Already marked completed')
+    res = nightshades.api.mark_complete(uuid, user_id = g.user_id)
+    if not res:
+        raise errors.InvalidAPIUsage('Already marked completed')
 
-        ret = {
-            'data': serialize_unit_data({
-                'id': uuid,
-                'completed': True
-            })
-        }
+    ret = {
+        'data': serialize_unit_data({
+            'id': uuid,
+            'completed': True
+        })
+    }
 
-        return jsonify(ret), 200
-
-    raise errors.InvalidAPIUsage('No operations to perform')
+    return jsonify(ret), 200

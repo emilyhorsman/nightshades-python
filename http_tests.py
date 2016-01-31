@@ -39,6 +39,7 @@ def mock_authenticate_finish(provider_user_id):
 class TestAPIv1(TestCase):
     def create_app(self):
         app = nightshades.http.app
+        app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
         app.config['SECRET_KEY'] = 'sekret'
         app.config['TESTING'] = True
 
@@ -228,6 +229,14 @@ class TestShowUnit(TestEndpoints):
         except iso8601.ParseError as e:
             self.fail(e)
 
+    def test_cannot_view_others_units(self):
+        other_user = User.create(name = 'Ada')
+        unit = Unit.create(user = other_user)
+
+        url = url_for('api.v1.show_unit', uuid = unit.id)
+        res = self.client.get(url)
+        self.assertStatus(res, 404)
+
 
 class TestUpdateUnit(TestEndpoints):
     def test_update_unit(self):
@@ -277,6 +286,30 @@ class TestUpdateUnit(TestEndpoints):
             content_type = 'application/json'
         )
         self.assertStatus(res, 400)
+
+    def test_cannot_update_others_units(self):
+        other_user = User.create(name = 'Ada')
+        unit = Unit.create(
+            user        = other_user,
+            completed   = False,
+            start_time  = SQL("NOW() - INTERVAL '25 minutes'"),
+            expiry_time = SQL("NOW() - INTERVAL '1 second'")
+        )
+
+        payload = {
+            'data': {
+                'type': 'unit',
+                'id': unit.id,
+                'attributes': { 'completed': True }
+            }
+        }
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = unit.id),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
+        self.assertStatus(res, 400)
+
 
 
 class TestValidateUUID(TestEndpoints):

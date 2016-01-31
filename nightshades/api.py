@@ -51,14 +51,18 @@ def start_unit(user_id, seconds = 1500, description = None):
     ).dicts().execute()
 
 
-def mark_complete(unit_id):
-    res = Unit.update(completed = True).where(
+def mark_complete(unit_id, **kwargs):
+    filters = [
         Unit.id == unit_id,
         Unit.completed == False,
         Unit.expiry_time < SQL('NOW()'),
-        SQL('NOW() <= expiry_time + {}'.format(expiry_interval))
-    ).execute()
+        SQL('NOW() <= expiry_time + {}'.format(expiry_interval)),
+    ]
 
+    if kwargs.get('user_id', False):
+        filters.append(Unit.user == kwargs['user_id'])
+
+    res = Unit.update(completed = True).where(*filters).execute()
     return res == 1
 
 
@@ -104,11 +108,12 @@ def set_tags(unit_id, tag_csv):
     return []
 
 
-def get_unit(user_id, unit_id):
-    return Unit.select().where(
-        Unit.id == unit_id,
-        Unit.user == user_id
-    ).dicts().get()
+def get_unit(unit_id, **kwargs):
+    filters = [Unit.id == unit_id]
+    if kwargs.get('user_id', False):
+        filters.append(Unit.user == kwargs['user_id'])
+
+    return Unit.select().where(*filters).dicts().get()
 
 
 def get_units(user_id, date_a, date_b):

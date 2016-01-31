@@ -1,3 +1,4 @@
+import peewee
 from flask import Blueprint, jsonify
 
 api = Blueprint('api.v1', __name__, url_prefix='/v1')
@@ -7,6 +8,13 @@ from nightshades.models import db
 from . import authentication
 from . import endpoints
 from . import errors
+
+
+@api.errorhandler(peewee.DoesNotExist)
+def handle_not_found(e):
+    return jsonify({ 'errors': [
+        { 'status': 404, 'title': 'Not Found' }
+    ]}), 404
 
 
 @api.errorhandler(nightshades.api.UsageError)
