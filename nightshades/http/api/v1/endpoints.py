@@ -36,6 +36,19 @@ def serialize_unit_data(unit):
     return data
 
 
+@api.route('/me')
+@logged_in
+def me():
+    user = nightshades.api.get_user(g.user_id)
+    return jsonify({
+        'data': {
+            'type': 'user',
+            'attributes': {
+                'name': user.get('name')
+            }
+        }
+    })
+
 # Get the current users units
 @api.route('/units')
 @logged_in

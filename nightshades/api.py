@@ -41,6 +41,10 @@ valid_login_providers = (
 )
 
 
+def get_user(user_id):
+    return User.select().where(User.id == user_id).dicts().get()
+
+
 def start_unit(user_id, seconds = 1500, description = None):
     '''Start a unit for a given user with a default period of 25 minutes.
 

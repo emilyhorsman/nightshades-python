@@ -148,6 +148,9 @@ class TestAuthentication(TestAPIv1):
         cookies = parse_cookie(res.headers.get('Set-Cookie'))
         self.assertFalse(cookies.get('jwt'))
 
+        res = self.client.get(url_for('api.v1.me'))
+        self.assertStatus(res, 401)
+
 
 
 class TestUnauthorized(TestAPIv1):
@@ -173,6 +176,14 @@ class TestEndpoints(TestAPIv1):
         self.user = User.create(name = 'Alice')
         token = jwt.encode({ 'user_id': str(self.user.id) }, 'sekret')
         self.client.set_cookie('localhost', 'jwt', token)
+
+
+class TestMe(TestEndpoints):
+    def test_me(self):
+        res = self.client.get(url_for('api.v1.me'))
+        self.assertStatus(res, 200)
+        self.assertEqual(res.json['data']['attributes']['name'], 'Alice')
+        self.assertEqual(res.json['data']['type'], 'user')
 
 
 class TestIndexUnits(TestEndpoints):

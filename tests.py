@@ -128,6 +128,13 @@ class TestTagModel(Test):
             Tag.create(unit = unit, string = 'foobar')
 
 
+class TestGetUser(Test):
+    def test_can_get_user(self):
+        user = User.create(name = 'Alice')
+        res = api.get_user(str(user.id))
+        self.assertEqual(res['name'], 'Alice')
+
+
 class TestMarkComplete(Test):
     def test_can_mark_complete(self):
         user = User.create(name = 'Alice')
