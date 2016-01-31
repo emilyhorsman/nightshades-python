@@ -192,7 +192,7 @@ class TestStartUnit(Test):
     def test_fail_too_short(self):
         with self.assertRaisesRegex(api.ValidationError, 'at least'):
             user = User.create(name = 'Alice')
-            api.start_unit(user.id, 1199, 'foo')
+            api.start_unit(user.id, 119, 'foo')
 
 
     def test_cannot_start_unit_during_ongoing_unit(self):

@@ -38,7 +38,7 @@ valid_login_providers = (
 
 
 def start_unit(user_id, seconds = 1500, description = None):
-    if seconds < 1200:
+    if seconds < 120:
         raise ValidationError('Unit must be at least 2 minutes')
 
     if has_ongoing_unit(user_id):
