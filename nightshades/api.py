@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import logging
 import datetime
 
@@ -10,6 +11,9 @@ expiry_interval = "INTERVAL '5 minutes'"
 
 
 class UsageError(Exception):
+    '''An exception thrown when the API has been used improperly, typically a
+    parent class.
+    '''
     def __init__(self, message = ''):
         Exception.__init__(self)
         self.message = message
@@ -38,6 +42,18 @@ valid_login_providers = (
 
 
 def start_unit(user_id, seconds = 1500, description = None):
+    '''Start a unit for a given user with a default period of 25 minutes.
+
+    :param user_id: a unique identifier for the user
+    :type user_id: `str` or `UUID`
+    :param int seconds: number of seconds in the new unit
+    :param str description: human-friendly description for the user of the unit
+    :return: UUID of new unit (the primary key) if created
+    :rtype: `UUID`
+    :raises ValidationError: if the specified unit is less than 2 minutes
+    :raises HasOngoingUnitAlready: if the user already has an ongoing unit
+    '''
+
     if seconds < 120:
         raise ValidationError('Unit must be at least 2 minutes')
 
@@ -52,6 +68,15 @@ def start_unit(user_id, seconds = 1500, description = None):
 
 
 def mark_complete(unit_id, **kwargs):
+    '''Mark a given unit as completed. This must be done within the expiry
+    threshold of the unit’s expiry_time.
+
+    :param unit_id: the ID of the unit
+    :type unit_id: `str` or `UUID`
+    :return: True if a unit was updated
+    :rtype: bool
+    '''
+
     filters = [
         Unit.id == unit_id,
         Unit.completed == False,
@@ -87,6 +112,10 @@ def validate_tag_csv(unit_id, tag_csv):
 
 
 def set_tags(unit_id, tag_csv):
+    '''Replace the tags of a unit with a given string of comma-separated tags.
+
+    :raises ValidationError: if more than 5 tags are given
+    '''
     valids, invalids = validate_tag_csv(unit_id, tag_csv)
 
     # If a blank string is received then all tags should be deleted even if

@@ -16,5 +16,6 @@ ratings:
         - "nightshades/**/*.py"
 
 exclude_paths:
+    - docs/conf.py
     - http_tests.py
     - tests.py
