@@ -10,14 +10,18 @@ from . import api
 from . import errors
 
 
-def set_jwt_cookie(resp, value, **kwargs):
+def set_cookie(resp, key, value, **kwargs):
     resp.set_cookie(
-        'jwt',
+        key,
         value,
         httponly = True,
         domain = current_app.config.get('COOKIE_DOMAIN'),
         **kwargs
     )
+
+
+def set_jwt_cookie(resp, value, **kwargs):
+    set_cookie(resp, 'jwt', value, **kwargs)
 
 
 def current_user_id():
@@ -64,7 +68,18 @@ def login_or_register(provider, res):
 
 
 def complete_flow(provider, res):
-    resp = make_response(jsonify({ 'status': 'success' }))
+    opener_url    = request.cookies.get('postMessage', False)
+    target_origin = current_app.config.get('public_origin', False)
+    if opener_url and target_origin:
+        resp = make_response('''
+        <script type='text/javascript'>
+        window.opener.postMessage('COMPLETE', '{}')
+        </script>
+        '''.format(target_origin))
+
+        set_cookie(resp, 'postMessage', '', expires = 0)
+    else:
+        resp = make_response(jsonify({ 'status': 'success' }))
 
     cookie = request.cookies.get('jwt', False)
     if cookie:
@@ -94,6 +109,9 @@ def authenticate(provider):
 
     if res.get('status') == 302:
         resp  = make_response(redirect(res.get('redirect')))
+        if request.args.get('postMessage', False) == 'true':
+            set_cookie(resp, 'postMessage', 'true')
+
         token = res.get('set_token_cookie', False)
         if token:
             set_jwt_cookie(resp, token)

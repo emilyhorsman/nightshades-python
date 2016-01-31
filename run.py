@@ -14,4 +14,6 @@ if __name__ == '__main__':
     if domain:
         app.config['COOKIE_DOMAIN'] = domain
 
+    app.config['public_origin'] = os.environ.get('NIGHTSHADES_PUBLIC_ORIGIN', None)
+
     app.run(host = '0.0.0.0')
