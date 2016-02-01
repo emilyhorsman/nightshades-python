@@ -16,6 +16,8 @@ def apply_cors(response):
     if cors:
         response.headers['Access-Control-Allow-Origin'] = current_app.config.get('CORS')
         response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PATCH, DELETE'
+        response.headers['Access-Control-Allow-Headers'] = 'content-type'
 
     return response
 

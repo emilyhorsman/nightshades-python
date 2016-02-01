@@ -24,6 +24,9 @@ def serialize_unit_data(unit):
     if 'completed' in unit:
         attrs['completed'] = unit.get('completed')
 
+    if 'description' in unit:
+        attrs['description'] = unit.get('description')
+
     if 'start_time' in unit:
         attrs['start_time'] = unit.get('start_time').isoformat()
 
