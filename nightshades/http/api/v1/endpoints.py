@@ -68,14 +68,14 @@ def index_units():
     return jsonify(ret)
 
 
-# Create a new unit and return the UUID and time delta
 @api.route('/units', methods=['POST'])
 @logged_in
 @validate_payload(type='unit')
 def create_unit():
-    payload = request.get_json()['data']
-    seconds = payload.get('attributes', {}).get('delta', 1500)
-    result  = nightshades.api.start_unit(g.user_id, seconds)
+    payload     = request.get_json()['data']
+    seconds     = payload.get('attributes', {}).get('delta', 1500)
+    description = payload.get('attributes', {}).get('description', None)
+    result      = nightshades.api.start_unit(g.user_id, seconds, description)
 
     ret = { 'data': serialize_unit_data(result) }
     return jsonify(ret), 201
