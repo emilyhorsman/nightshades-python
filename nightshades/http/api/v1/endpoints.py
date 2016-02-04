@@ -20,7 +20,10 @@ def serialize_unit_data(unit):
         }
     }
 
-    attrs = {}
+    attrs = {
+        'expiry_threshold_seconds': nightshades.api.expiry_interval_seconds
+    }
+
     if 'completed' in unit:
         attrs['completed'] = unit.get('completed')
 

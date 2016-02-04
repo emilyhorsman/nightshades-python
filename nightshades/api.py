@@ -7,7 +7,8 @@ import peewee
 from .models import db, User, Unit, Tag, LoginProvider, SQL
 
 # This is how long one has after the expiry_time to mark a unit as complete.
-expiry_interval = "INTERVAL '5 minutes'"
+expiry_interval_seconds = 300
+expiry_interval = "INTERVAL '{} seconds'".format(expiry_interval_seconds)
 
 
 class UsageError(Exception):
