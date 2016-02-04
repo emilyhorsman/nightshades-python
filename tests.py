@@ -201,7 +201,6 @@ class TestStartUnit(Test):
             user = User.create(name = 'Alice')
             api.start_unit(user.id, 119, 'foo')
 
-
     def test_cannot_start_unit_during_ongoing_unit(self):
         user = User.create(name = 'Alice')
         unit = Unit.create(
@@ -214,9 +213,9 @@ class TestStartUnit(Test):
             api.start_unit(user.id)
 
     def test_start_unit(self):
-        user    = User.create(name = 'Alice')
-        unit_id = api.start_unit(user.id, 1200, 'Homework!')
-        self.assertIsInstance(unit_id, UUID)
+        user = User.create(name = 'Alice')
+        unit = api.start_unit(user.id, 1200, 'Homework!')
+        self.assertIsInstance(unit.get('id'), UUID)
 
 
 class TestValidateTagCSV(Test):

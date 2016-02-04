@@ -53,8 +53,7 @@ def start_unit(user_id, seconds = 1500, description = None):
     :type user_id: `str` or `UUID`
     :param int seconds: number of seconds in the new unit
     :param str description: human-friendly description for the user of the unit
-    :return: UUID of new unit (the primary key) if created
-    :rtype: `UUID`
+    :return: Dict of new unit
     :raises ValidationError: if the specified unit is less than 2 minutes
     :raises HasOngoingUnitAlready: if the user already has an ongoing unit
     '''
@@ -65,11 +64,13 @@ def start_unit(user_id, seconds = 1500, description = None):
     if has_ongoing_unit(user_id):
         raise HasOngoingUnitAlready
 
-    return Unit.insert(
+    res = Unit.insert(
         user        = user_id,
         expiry_time = SQL("NOW() + INTERVAL '%s seconds'", seconds),
         description = description
-    ).dicts().execute()
+    ).execute()
+
+    return Unit.select().where(Unit.id == res).dicts().get()
 
 
 def mark_complete(unit_id, **kwargs):
