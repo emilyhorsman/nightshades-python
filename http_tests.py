@@ -288,7 +288,7 @@ class TestShowUnit(TestEndpoints):
 class TestDeleteUnit(TestEndpoints):
     def test_delete_ongoing_unit(self):
         unit = Unit.create(user = self.user)
-        url = url_for('api.v1.delete_unit', uuid = unit.id)
+        url = url_for('api.v1.delete_unit')
         res = self.client.delete(url)
         self.assertStatus(res, 200)
 
