@@ -86,7 +86,7 @@ def mark_complete(unit_id, **kwargs):
     filters = [
         Unit.id == unit_id,
         Unit.completed == False,
-        Unit.expiry_time < SQL('NOW()'),
+        Unit.expiry_time <= SQL('NOW()'),
         SQL('NOW() <= expiry_time + {}'.format(expiry_interval)),
     ]
 
