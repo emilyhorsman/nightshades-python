@@ -112,7 +112,7 @@ def update_unit(uuid):
 
     res = nightshades.api.mark_complete(uuid, user_id = g.user_id)
     if not res:
-        raise errors.InvalidAPIUsage('Already marked completed')
+        raise errors.InvalidAPIUsage('Unit is not yet complete or has already been marked complete')
 
     ret = {
         'data': serialize_unit_data({
