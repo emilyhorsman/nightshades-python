@@ -55,7 +55,14 @@ def me():
         }
     })
 
-# Get the current users units
+
+@api.route('/units', methods=['DELETE'])
+@logged_in
+def delete_unit():
+    nightshades.api.cancel_ongoing_unit(g.user_id)
+    return jsonify({ 'status': 'success' })
+
+
 @api.route('/units')
 @logged_in
 def index_units():
@@ -84,7 +91,6 @@ def create_unit():
     return jsonify(ret), 201
 
 
-# Get time delta
 @api.route('/units/<uuid>')
 @logged_in
 @validate_uuid

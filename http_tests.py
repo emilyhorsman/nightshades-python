@@ -262,6 +262,26 @@ class TestShowUnit(TestEndpoints):
         self.assertStatus(res, 404)
 
 
+class TestDeleteUnit(TestEndpoints):
+    def test_delete_ongoing_unit(self):
+        unit = Unit.create(user = self.user)
+        url = url_for('api.v1.delete_unit', uuid = unit.id)
+        res = self.client.delete(url)
+        self.assertStatus(res, 200)
+
+    def test_no_ongoing_unit(self):
+        unit = Unit.create(
+            user = self.user,
+            completed = False,
+            start_time = SQL("NOW() - INTERVAL '2 hours'"),
+            expiry_time = SQL("NOW() - INTERVAL '1 hour'")
+        )
+        url = url_for('api.v1.delete_unit', uuid = unit.id)
+        res = self.client.delete(url)
+        self.assertStatus(res, 404,
+            message = 'No ongoing unit should have been found')
+
+
 class TestUpdateUnit(TestEndpoints):
     def test_update_unit(self):
         unit = Unit.create(
