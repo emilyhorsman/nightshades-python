@@ -36,8 +36,11 @@ def serialize_unit_data(unit):
     if 'expiry_time' in unit:
         attrs['expiry_time'] = unit.get('expiry_time').isoformat()
 
-    if unit.get('tags', False):
-        attrs['tags'] = unit.get('tags')
+    tags = unit.get('tags', False)
+    if type(tags) is list:
+        attrs['tags'] = tags
+    elif type(tags) is str:
+        attrs['tags'] = tags.split(', ')
 
     if attrs:
         data['attributes'] = attrs
