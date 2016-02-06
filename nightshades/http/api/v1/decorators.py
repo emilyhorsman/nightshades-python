@@ -34,7 +34,7 @@ def validate_uuid(func):
     return wrapped
 
 
-def validate_payload(type):
+def validate_payload(type, attributes_required = False):
     def decorator(func):
         @wraps(func)
         def wrapped(*args, **kwargs):
@@ -44,6 +44,9 @@ def validate_payload(type):
 
             if payload['data'].get('type') != type:
                 raise errors.InvalidAPIUsage('Wrong type, expected {}'.format(type))
+
+            if attributes_required and not payload['data'].get('attributes', False):
+                raise errors.InvalidAPIUsage('No attributes given')
 
             return func(*args, **kwargs)
 

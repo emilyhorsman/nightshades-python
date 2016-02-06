@@ -223,6 +223,29 @@ class TestCreateUnit(TestEndpoints):
         self.assertEqual(ret['type'], 'unit')
         self.assertIn('id', ret)
 
+
+    def test_create_unit_with_tags_csv(self):
+        payload = {
+            'data': {
+                'type': 'unit',
+                'attributes': {
+                    'description': 'Foobar!',
+                    'tags': 'foo,bar'
+                }
+            }
+        }
+        res = self.client.post(
+            url_for('api.v1.create_unit'),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
+        ret = res.json['data']
+
+        self.assertStatus(res, 201)
+        self.assertEqual(ret['attributes']['description'], 'Foobar!')
+        self.assertEqual(set(ret['attributes']['tags']), set(('foo', 'bar', )))
+
+
     def test_error_on_second_ongoing_unit(self):
         Unit.create(user = self.user)
         payload = { 'data': { 'type': 'unit' } }
@@ -303,6 +326,24 @@ class TestUpdateUnit(TestEndpoints):
             content_type = 'application/json'
         )
         self.assertStatus(res, 200)
+
+    def test_update_tags(self):
+        unit = Unit.create(user = self.user)
+        payload = {}
+        payload['data'] = {
+            'type': 'unit',
+            'id': unit.id,
+            'attributes': { 'tags': 'foo,bar' }
+        }
+        res = self.client.patch(
+            url_for('api.v1.update_unit', uuid = unit.id),
+            data = dumps(payload),
+            content_type = 'application/json'
+        )
+        self.assertStatus(res, 200)
+
+        tags = set(Tag.select(Tag.string).where(Tag.unit == unit).tuples())
+        self.assertEqual(tags, set((('foo',), ('bar',))))
 
     def test_already_marked_complete(self):
         unit = Unit.create(user = self.user, completed = True)

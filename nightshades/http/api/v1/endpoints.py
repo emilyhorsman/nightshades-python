@@ -36,6 +36,9 @@ def serialize_unit_data(unit):
     if 'expiry_time' in unit:
         attrs['expiry_time'] = unit.get('expiry_time').isoformat()
 
+    if 'tags' in unit:
+        attrs['tags'] = unit.get('tags')
+
     if attrs:
         data['attributes'] = attrs
 
@@ -80,12 +83,18 @@ def index_units():
 
 @api.route('/units', methods=['POST'])
 @logged_in
-@validate_payload(type='unit')
+@validate_payload(type='unit', attributes_required=True)
 def create_unit():
     payload     = request.get_json()['data']
-    seconds     = payload.get('attributes', {}).get('delta', 1500)
-    description = payload.get('attributes', {}).get('description', None)
+    attributes  = payload['attributes']
+    seconds     = attributes.get('delta', 1500)
+    description = attributes.get('description', None)
     result      = nightshades.api.start_unit(g.user_id, seconds, description)
+
+    tags = attributes.get('tags', None)
+    if tags:
+        valid_tags = nightshades.api.set_tags(result.get('id'), tags)
+        result['tags'] = valid_tags
 
     ret = { 'data': serialize_unit_data(result) }
     return jsonify(ret), 201
@@ -104,21 +113,30 @@ def show_unit(uuid):
 @api.route('/units/<uuid>', methods=['PATCH'])
 @logged_in
 @validate_uuid
-@validate_payload('unit')
+@validate_payload(type = 'unit', attributes_required = True)
 def update_unit(uuid):
-    payload = request.get_json()['data']
-    if not payload.get('attributes', {}).get('completed', False):
-        raise errors.InvalidAPIUsage('No operations to perform')
+    attributes = request.get_json()['data']['attributes']
 
-    res = nightshades.api.mark_complete(uuid, user_id = g.user_id)
-    if not res:
-        raise errors.InvalidAPIUsage('Unit is not yet complete or has already been marked complete')
-
-    ret = {
-        'data': serialize_unit_data({
-            'id': uuid,
-            'completed': True
+    tags = attributes.get('tags', False)
+    if tags:
+        valid_tags = nightshades.api.set_tags(uuid, tags, user_id = g.user_id)
+        return jsonify({
+            'data': serialize_unit_data({
+                'id': uuid,
+                'tags': valid_tags
+            })
         })
-    }
 
-    return jsonify(ret), 200
+    if attributes.get('completed', False):
+        res = nightshades.api.mark_complete(uuid, user_id = g.user_id)
+        if not res:
+            raise errors.InvalidAPIUsage('Unit is not yet complete or has already been marked complete')
+
+        return jsonify({
+            'data': serialize_unit_data({
+                'id': uuid,
+                'completed': True
+            })
+        })
+
+    raise errors.InvalidAPIUsage('No operations to perform')

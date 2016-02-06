@@ -117,7 +117,7 @@ def validate_tag_csv(unit_id, tag_csv):
     return (valids, invalids)
 
 
-def set_tags(unit_id, tag_csv):
+def set_tags(unit_id, tag_csv, **kwargs):
     '''Replace the tags of a unit with a given string of comma-separated tags.
 
     :raises ValidationError: if more than 5 tags are given
@@ -129,6 +129,16 @@ def set_tags(unit_id, tag_csv):
     # are no valid tags, raise a ValidationError.
     if len(tag_csv) > 0 and len(valids) == 0:
         raise ValidationError('No valid tags')
+
+    # Ensure this is the given user's unit.
+    if kwargs.get('user_id', False):
+        res =  Unit.select().where(
+            Unit.id == unit_id,
+            Unit.user == kwargs['user_id']
+        ).count()
+
+        if res != 1:
+            raise UsageError('Unauthorized')
 
     with db.atomic() as trans:
         Tag.delete().where(
