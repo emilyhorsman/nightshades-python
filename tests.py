@@ -321,6 +321,36 @@ class TestGetUnits(Test):
         self.assertIn(unit_yesa.id, ids)
         self.assertIn(unit_yesb.id, ids)
 
+    def test_get_units_with_tags(self):
+        user = User.create(name = 'Alice')
+        Unit.create(
+            user = user,
+            completed = True,
+            start_time = SQL("NOW() - INTERVAL '2 hours'"),
+            expiry_time = SQL("NOW() - INTERVAL '1 hour'")
+        )
+        unit = Unit.create(user = user)
+        Tag.create(unit = unit, string = 'foo')
+        Tag.create(unit = unit, string = 'bar')
+
+        now = datetime.datetime.now()
+        beginning_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        res = list(api.get_units(user.id, beginning_of_today, end_of_today))
+
+        self.assertEqual(set(res[0].get('tags').split(', ')), set(('foo', 'bar',)))
+        self.assertIsNone(res[1].get('tags'), None)
+
+
+class TestGetUnit(Test):
+    def test_get_unit_with_tags(self):
+        user = User.create(name = 'Alice')
+        unit = Unit.create(user = user)
+        Tag.create(unit = unit, string = 'foo')
+
+        res = api.get_unit(unit.id, user_id = user.id)
+        self.assertEqual(res.get('tags'), 'foo')
+
 
 class TestCancelOngoingUnit(Test):
     def test_cancel_ongoing_unit(self):

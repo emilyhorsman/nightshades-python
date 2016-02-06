@@ -158,14 +158,21 @@ def get_unit(unit_id, **kwargs):
     if kwargs.get('user_id', False):
         filters.append(Unit.user == kwargs['user_id'])
 
-    return Unit.select().where(*filters).dicts().get()
+    return Unit.select(
+        Unit,
+        peewee.fn.string_agg(Tag.string, SQL("', '")).alias('tags')
+    ).join(
+        Tag, peewee.JOIN.LEFT_OUTER
+    ).where(*filters).group_by(Unit).dicts().get()
 
 
 def get_units(user_id, date_a, date_b):
-    return Unit.select().where(
+    return Unit.select(
+        Unit, peewee.fn.string_agg(Tag.string, SQL("', '")).alias('tags')
+    ).join(Tag, peewee.JOIN.LEFT_OUTER).where(
         Unit.user == user_id,
         SQL('start_time BETWEEN SYMMETRIC %s AND %s', date_a, date_b),
-    ).order_by(Unit.start_time.desc()).dicts()
+    ).group_by(Unit).order_by(Unit.start_time.desc()).dicts()
 
 
 def query_ongoing_unit(user_id):
