@@ -8,6 +8,14 @@ import nightshades
 from flask import request, jsonify, url_for, g
 
 
+def add_date_meta(obj):
+    if 'meta' not in obj:
+        obj['meta'] = {}
+
+    obj['meta']['date'] = datetime.datetime.now().isoformat()
+    return obj
+
+
 def serialize_unit_data(unit):
     if type(unit) is not dict:
         unit = { 'id': unit }
@@ -52,14 +60,14 @@ def serialize_unit_data(unit):
 @logged_in
 def me():
     user = nightshades.api.get_user(g.user_id)
-    return jsonify({
+    return jsonify(add_date_meta({
         'data': {
             'type': 'user',
             'attributes': {
                 'name': user.get('name')
             }
         }
-    })
+    }))
 
 
 @api.route('/units', methods=['DELETE'])
@@ -81,7 +89,7 @@ def index_units():
     ret = {}
     ret['links'] = { 'self': url_for('.index_units') }
     ret['data']  = list(map(serialize_unit_data, units))
-    return jsonify(ret)
+    return jsonify(add_date_meta(ret))
 
 
 @api.route('/units', methods=['POST'])
@@ -100,7 +108,7 @@ def create_unit():
         result['tags'] = valid_tags
 
     ret = { 'data': serialize_unit_data(result) }
-    return jsonify(ret), 201
+    return jsonify(add_date_meta(ret)), 201
 
 
 @api.route('/units/<uuid>')
@@ -110,7 +118,7 @@ def show_unit(uuid):
     unit = nightshades.api.get_unit(uuid, user_id = g.user_id)
 
     ret  = { 'data': serialize_unit_data(unit) }
-    return jsonify(ret), 200
+    return jsonify(add_date_meta(ret)), 200
 
 
 @api.route('/units/<uuid>', methods=['PATCH'])
@@ -123,23 +131,23 @@ def update_unit(uuid):
     tags = attributes.get('tags', False)
     if tags:
         valid_tags = nightshades.api.set_tags(uuid, tags, user_id = g.user_id)
-        return jsonify({
+        return jsonify(add_date_meta({
             'data': serialize_unit_data({
                 'id': uuid,
                 'tags': valid_tags
             })
-        })
+        }))
 
     if attributes.get('completed', False):
         res = nightshades.api.mark_complete(uuid, user_id = g.user_id)
         if not res:
             raise errors.InvalidAPIUsage('Unit is not yet complete or has already been marked complete')
 
-        return jsonify({
+        return jsonify(add_date_meta({
             'data': serialize_unit_data({
                 'id': uuid,
                 'completed': True
             })
-        })
+        }))
 
     raise errors.InvalidAPIUsage('No operations to perform')

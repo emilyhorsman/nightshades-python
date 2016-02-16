@@ -204,6 +204,15 @@ class TestIndexUnits(TestEndpoints):
         self.assertEqual(ret[1]['id'], str(b.id))
 
 
+    def test_has_date_meta(self):
+        res = self.client.get(url_for('api.v1.index_units'))
+        ret = res.json['meta']
+        try:
+            iso8601.parse_date(ret['date'])
+        except iso8601.ParseError as e:
+            self.fail(e)
+
+
 class TestCreateUnit(TestEndpoints):
     def test_create_unit(self):
         payload = {
