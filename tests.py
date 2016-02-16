@@ -329,7 +329,12 @@ class TestGetUnits(Test):
             start_time = SQL("NOW() - INTERVAL '2 hours'"),
             expiry_time = SQL("NOW() - INTERVAL '1 hour'")
         )
-        unit = Unit.create(user = user)
+        unit = Unit.create(
+            user = user,
+            completed = False,
+            start_time = SQL("NOW() - INTERVAL '50 minutes'"),
+            expiry_time = SQL("NOW() + INTERVAL '5 minutes'")
+        )
         Tag.create(unit = unit, string = 'foo')
         Tag.create(unit = unit, string = 'bar')
 
